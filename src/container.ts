@@ -57,16 +57,16 @@ export async function ensureContainer(
     const info = await container.inspect();
 
     if (!info.State.Running) {
-      log("Resuming existing isolated environment...");
+      log("Waking up cocoon...");
       await container.start();
-      log("Environment resumed.");
+      log("Cocoon is awake.");
     } else {
-      log("Reusing active isolated environment.");
+      log("Cocoon already running.");
     }
 
     return name;
   } catch {
-    log("Provisioning new isolated environment...");
+    log("Spinning up a fresh cocoon...");
 
     const binds = buildMountBinds(projectDir, mounts);
     const envVars = buildEnvVars(env);
@@ -90,7 +90,7 @@ export async function ensureContainer(
 
     const container = docker.getContainer(name);
     await container.start();
-    log("Isolated environment provisioned and running.");
+    log("Cocoon spun up and running.");
     return name;
   }
 }
@@ -100,9 +100,9 @@ export async function stopContainer(projectDir: string): Promise<void> {
   try {
     const container = docker.getContainer(name);
     await container.stop();
-    log(`Container ${name} stopped.`);
+    log("Cocoon tucked away.");
   } catch {
-    log("Container is not running.");
+    log("Cocoon is already asleep.");
   }
 }
 
@@ -112,9 +112,9 @@ export async function resetContainer(projectDir: string): Promise<void> {
     const container = docker.getContainer(name);
     try { await container.stop(); } catch { /* already stopped */ }
     await container.remove();
-    log(`Container ${name} removed.`);
+    log("Cocoon unwrapped.");
   } catch {
-    log("No existing container to remove.");
+    log("No cocoon to unwrap.");
   }
 }
 

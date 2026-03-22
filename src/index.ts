@@ -5,7 +5,7 @@ import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { resolveProjectDir, promptUser } from "./utils.js";
-import { log, warn, success } from "./ui.js";
+import { log, warn, success, banner, createSpinner, yellow } from "./ui.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
 import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 import { ensureImage, removeImage } from "./image.js";
@@ -53,6 +53,8 @@ async function main(): Promise<void> {
 
   await checkDocker();
 
+  process.stderr.write(banner(pkg.version) + "\n\n");
+
   const projectDir = resolveProjectDir(opts.dir);
   validateProjectDir(projectDir);
 
@@ -74,7 +76,7 @@ async function main(): Promise<void> {
 
   if (opts.reset) {
     await resetContainer(projectDir);
-    log("Container reset. It will be recreated on next run.");
+    success("Cocoon unwrapped. A fresh one will be spun on next run.");
     return;
   }
 
@@ -83,7 +85,7 @@ async function main(): Promise<void> {
     const config = mergeConfig(fileConfig, { mounts: [], envs: [] });
     await resetContainer(projectDir);
     await removeImage(config.image);
-    log("Image and container removed. They will be rebuilt on next run.");
+    success("Cocoon and image cleared. Everything will be rebuilt from scratch.");
     return;
   }
 
@@ -113,11 +115,11 @@ async function main(): Promise<void> {
     if (opts.yes) {
       log("Auto-accepting config file mounts (--yes flag).");
     } else {
-      log(`WARNING: .cocoon.json requests ${fileConfig.mounts.length} host mount(s):`);
+      warn(`.cocoon.json requests ${fileConfig.mounts.length} host mount(s):`);
       for (const m of fileConfig.mounts) {
         log(`  ${m.host} -> ${m.container} (${m.mode})`);
       }
-      const answer = await promptUser("cocoon: Allow these mounts? [y/N] ");
+      const answer = await promptUser(`${yellow("cocoon \u26A0")} Allow these mounts? [y/N] `);
       if (!["y", "yes"].includes(answer.trim().toLowerCase())) {
         log("Aborted by user.");
         process.exit(1);
@@ -128,16 +130,19 @@ async function main(): Promise<void> {
   const config = mergeConfig(fileConfig, { mounts: cliMounts, envs: opts.env ?? [] });
 
   // Ensure image exists
-  log("Preparing isolated environment...");
+  const spinner = createSpinner("Preparing isolated environment...");
+  spinner.start();
   await ensureImage(config.image, config.dockerfile);
+  spinner.success("Environment image ready.");
 
   // Ensure container is running
-  log(`Encapsulating Claude for project: ${projectDir}`);
+  const cocoonSpinner = createSpinner("Spinning up cocoon...");
+  cocoonSpinner.start();
   const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
-  log("Isolated environment ready.");
+  cocoonSpinner.success("Cocoon ready. Claude is getting cozy.");
 
   if (opts.shell) {
-    log("Opening shell in isolated environment...");
+    log("Opening shell inside cocoon...");
     const exitCode = await shellInContainer(name);
     process.exit(exitCode);
   }
@@ -151,7 +156,7 @@ async function main(): Promise<void> {
   // program.args has only the non-consumed positional args after parse().
   const forwardArgs = [...program.args, ...parsed.unknown];
 
-  log("Launching Claude in isolated environment...");
+  log("Releasing Claude into the cocoon...");
   const exitCode = await execInContainer(name, forwardArgs);
   process.exit(exitCode);
 }

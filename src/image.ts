@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { log } from "./ui.js";
+import { log, dim } from "./ui.js";
 
 const docker = new Docker();
 
@@ -38,7 +38,7 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     return;
   }
 
-  log("Building container image (this may take a minute on first run)...");
+  log("Weaving cocoon image (first run takes a moment)...");
 
   const uid = process.getuid?.() ?? 1000;
   const gid = process.getgid?.() ?? 1000;
@@ -74,21 +74,21 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
       }
       if (event.stream) {
         const line = event.stream.trim();
-        if (line) log(line);
+        if (line) log(dim(line));
       }
     });
   });
 
-  log("Image built successfully.");
+  log("Image woven successfully.");
 }
 
 export async function removeImage(imageName: string): Promise<void> {
   try {
     const image = docker.getImage(imageName);
     await image.remove({ force: true });
-    log(`Image ${imageName} removed.`);
+    log("Cocoon image removed.");
   } catch {
-    log("No existing image to remove.");
+    log("No cocoon image to remove.");
   }
 }
 
@@ -100,7 +100,7 @@ async function shouldBuild(imageName: string, currentHash: string): Promise<bool
     if (storedHash === currentHash) {
       return false;
     }
-    log("Dockerfile has changed, rebuilding image...");
+    log("Cocoon blueprint changed, reweaving...");
     return true;
   } catch {
     return true;
