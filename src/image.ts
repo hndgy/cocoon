@@ -77,6 +77,16 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   log("Image built successfully.");
 }
 
+export async function removeImage(imageName: string): Promise<void> {
+  try {
+    const image = docker.getImage(imageName);
+    await image.remove({ force: true });
+    log(`Image ${imageName} removed.`);
+  } catch {
+    log("No existing image to remove.");
+  }
+}
+
 async function shouldBuild(imageName: string, currentHash: string): Promise<boolean> {
   try {
     const image = docker.getImage(imageName);

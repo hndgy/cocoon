@@ -6,7 +6,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { resolveProjectDir, log } from "./utils.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
-import { ensureImage } from "./image.js";
+import { ensureImage, removeImage } from "./image.js";
 import { ensureContainer, stopContainer, resetContainer, getContainerStatus, listContainers } from "./container.js";
 import { execInContainer } from "./exec.js";
 import Docker from "dockerode";
@@ -40,6 +40,7 @@ async function main(): Promise<void> {
     .option("--stop", "Stop the container for current project")
     .option("--reset", "Destroy and recreate the container")
     .option("--list", "List all claude-container instances")
+    .option("--rebuild", "Remove image and container, rebuild from scratch")
     .allowUnknownOption(true)
     .allowExcessArguments(true);
 
@@ -69,6 +70,15 @@ async function main(): Promise<void> {
   if (opts.reset) {
     await resetContainer(projectDir);
     log("Container reset. It will be recreated on next run.");
+    return;
+  }
+
+  if (opts.rebuild) {
+    const fileConfig = loadConfig(projectDir);
+    const config = mergeConfig(fileConfig, { mounts: [], envs: [] });
+    await resetContainer(projectDir);
+    await removeImage(config.image);
+    log("Image and container removed. They will be rebuilt on next run.");
     return;
   }
 
