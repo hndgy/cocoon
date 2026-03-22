@@ -139,16 +139,11 @@ claude-container --mount ~/.ssh:/home/claude/.ssh:ro "help me set up git"
 
 ### Authentication
 
-Claude Code authenticates via `~/.claude` (mounted read-write). No API key environment variable is needed when using OAuth login — the session persists in the mounted config directory.
-
-For API key authentication, `ANTHROPIC_API_KEY` is forwarded automatically if set on the host.
+Claude Code authenticates via subscription (OAuth login). The session is persisted in `~/.claude` which is mounted read-write into the container. No API keys are involved — the user logs in once on the host and the session carries over.
 
 ### Forwarding strategy
 
-All environment variables matching these patterns are forwarded from the host into the container:
-
-- `ANTHROPIC_*` (API key, base URL, etc.)
-- `CLAUDE_*` (model, max turns, etc.)
+All environment variables matching `CLAUDE_*` are forwarded from the host into the container (model overrides, max turns, etc.).
 
 Additional env vars can be configured in `.claude-container.json`:
 
