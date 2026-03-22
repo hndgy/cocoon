@@ -15,10 +15,10 @@ RUN apt-get update && \
 RUN groupadd -g ${GID} claude || true && \
     useradd -m -u ${UID} -g ${GID} -s /bin/bash claude
 
-# Install Claude Code via native installer
-RUN curl -fsSL https://claude.ai/install.sh | sh
-
+# Install Claude Code via native installer as claude user
 USER claude
+RUN curl -fsSL https://claude.ai/install.sh | sh
+ENV PATH="/home/claude/.local/bin:${PATH}"
 WORKDIR /workspace
 
 ENTRYPOINT ["sleep", "infinity"]
