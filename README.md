@@ -25,19 +25,6 @@ Cocoon wraps your project in a disposable Linux container with Claude Code pre-i
 ## Install
 
 ```bash
-# Requires Node.js 18+ and Docker
-npm install -g cocoon
-```
-
-Or add to your project:
-
-```bash
-npm install cocoon
-```
-
-Or clone and link locally:
-
-```bash
 git clone https://github.com/hndgy/cocoon.git
 cd cocoon
 npm install
