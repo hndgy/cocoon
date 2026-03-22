@@ -25,6 +25,8 @@ ENV PATH="/home/claude/.local/bin:${PATH}"
 ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
 WORKDIR /workspace
 
-COPY --chown=claude:claude entrypoint.sh /home/claude/entrypoint.sh
-RUN chmod +x /home/claude/entrypoint.sh
+COPY entrypoint.sh /home/claude/entrypoint.sh
+USER root
+RUN chown ${UID}:${GID} /home/claude/entrypoint.sh && chmod +x /home/claude/entrypoint.sh
+USER claude
 ENTRYPOINT ["/home/claude/entrypoint.sh"]
