@@ -11,6 +11,7 @@ export function execInContainer(
       "-w", "/workspace",
       containerName,
       "claude",
+      "--dangerously-skip-permissions",
       ...args,
     ];
 
