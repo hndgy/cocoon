@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { buildMountBinds, buildEnvVars } from "../src/container.js";
-import { homedir } from "os";
 
 describe("buildMountBinds", () => {
-  it("includes required mounts for project and claude config", () => {
+  it("includes required mounts for project", () => {
     const binds = buildMountBinds("/my/project", []);
     expect(binds).toContain("/my/project:/workspace:rw");
-    expect(binds).toContain(`${homedir()}/.claude:/home/claude/.claude-host:ro`);
   });
 
   it("includes additional configured mounts when host path exists", () => {

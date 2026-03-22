@@ -20,14 +20,10 @@ USER claude
 SHELL ["/bin/bash", "-c"]
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
-# CLAUDE_CONFIG_DIR tells Claude Code where to find all config + credentials.
-# We mount the host's ~/.claude here so auth persists without keychain issues.
+# CLAUDE_CONFIG_DIR: a persistent volume mounted here stores all config + credentials.
+# User logs in once inside the container, credentials persist across restarts.
 ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
 RUN mkdir -p /home/claude/.claude-config
 WORKDIR /workspace
 
-COPY entrypoint.sh /home/claude/entrypoint.sh
-USER root
-RUN chown ${UID}:${GID} /home/claude/entrypoint.sh && chmod +x /home/claude/entrypoint.sh
-USER claude
-ENTRYPOINT ["/home/claude/entrypoint.sh"]
+ENTRYPOINT ["sleep", "infinity"]

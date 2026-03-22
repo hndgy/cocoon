@@ -1,5 +1,4 @@
 import Docker from "dockerode";
-import { homedir } from "os";
 import { existsSync } from "fs";
 import { expandTilde, containerName, log } from "./utils.js";
 import type { MountConfig } from "./config.js";
@@ -7,10 +6,8 @@ import type { MountConfig } from "./config.js";
 const docker = new Docker();
 
 export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]): string[] {
-  const claudeDir = `${homedir()}/.claude`;
   const binds = [
     `${projectDir}:/workspace:rw`,
-    `${claudeDir}:/home/claude/.claude-host:ro`,
   ];
 
   for (const mount of extraMounts) {
@@ -48,13 +45,6 @@ export async function ensureContainer(
   env: Record<string, string>,
 ): Promise<string> {
   const name = containerName(projectDir);
-
-  const claudeDir = `${homedir()}/.claude`;
-  if (!existsSync(claudeDir)) {
-    throw new Error(
-      "~/.claude not found. Run `claude` on the host first to set up authentication.",
-    );
-  }
 
   try {
     const container = docker.getContainer(name);
