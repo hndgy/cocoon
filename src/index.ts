@@ -8,7 +8,7 @@ import { resolveProjectDir, log } from "./utils.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
 import { ensureImage, removeImage } from "./image.js";
 import { ensureContainer, stopContainer, resetContainer, getContainerStatus, listContainers } from "./container.js";
-import { execInContainer } from "./exec.js";
+import { execInContainer, shellInContainer } from "./exec.js";
 import Docker from "dockerode";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +41,7 @@ async function main(): Promise<void> {
     .option("--reset", "Destroy and recreate the container")
     .option("--list", "List all claude-container instances")
     .option("--clear", "Remove image and container, rebuild from scratch")
+    .option("--shell", "Open a bash shell inside the container")
     .allowUnknownOption(true)
     .allowExcessArguments(true);
 
@@ -105,6 +106,11 @@ async function main(): Promise<void> {
 
   // Ensure container is running
   const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
+
+  if (opts.shell) {
+    const exitCode = await shellInContainer(name);
+    process.exit(exitCode);
+  }
 
   // Forward remaining args to claude.
   // program.args contains positional args not consumed by our options.

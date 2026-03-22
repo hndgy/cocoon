@@ -1,8 +1,19 @@
 import { spawn } from "child_process";
 
+export function shellInContainer(containerName: string): Promise<number> {
+  return execCommand(containerName, ["bash"]);
+}
+
 export function execInContainer(
   containerName: string,
   args: string[],
+): Promise<number> {
+  return execCommand(containerName, ["claude", "--dangerously-skip-permissions", ...args]);
+}
+
+function execCommand(
+  containerName: string,
+  command: string[],
 ): Promise<number> {
   return new Promise((resolve) => {
     const dockerArgs = [
@@ -10,9 +21,7 @@ export function execInContainer(
       "-it",
       "-w", "/workspace",
       containerName,
-      "claude",
-      "--dangerously-skip-permissions",
-      ...args,
+      ...command,
     ];
 
     const child = spawn("docker", dockerArgs, {
