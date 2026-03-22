@@ -100,7 +100,28 @@ npm install dockerode commander
 npm install -D typescript @types/node @types/dockerode vitest
 ```
 
-- [ ] **Step 4: Create placeholder entry point**
+- [ ] **Step 4: Create .gitignore**
+
+Create `.gitignore`:
+
+```
+node_modules/
+dist/
+```
+
+- [ ] **Step 5: Create .dockerignore**
+
+Create `.dockerignore`:
+
+```
+node_modules/
+dist/
+tests/
+.git/
+*.md
+```
+
+- [ ] **Step 6: Create placeholder entry point**
 
 Create `src/index.ts`:
 
@@ -109,7 +130,7 @@ Create `src/index.ts`:
 console.log("claude-container");
 ```
 
-- [ ] **Step 5: Build and verify**
+- [ ] **Step 7: Build and verify**
 
 ```bash
 npm run build
@@ -118,10 +139,10 @@ node dist/index.js
 
 Expected: prints "claude-container"
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add package.json tsconfig.json src/index.ts package-lock.json
+git add package.json tsconfig.json src/index.ts package-lock.json .gitignore .dockerignore
 git commit -m "feat: scaffold project with TypeScript, dockerode, commander"
 ```
 
@@ -222,6 +243,9 @@ import { homedir } from "os";
 import { resolve } from "path";
 
 export function expandTilde(filePath: string): string {
+  if (filePath === "~") {
+    return homedir();
+  }
   if (filePath.startsWith("~/")) {
     return `${homedir()}/${filePath.slice(2)}`;
   }
@@ -362,7 +386,12 @@ export function loadConfig(projectDir: string): Config | undefined {
     return undefined;
   }
   const raw = readFileSync(configPath, "utf-8");
-  const parsed = JSON.parse(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Invalid JSON in ${configPath}: ${(e as Error).message}`);
+  }
   return validateConfig(parsed);
 }
 
@@ -567,8 +596,20 @@ function bundledDockerfilePath(): string {
 }
 
 export async function ensureImage(imageName: string, customDockerfile?: string): Promise<void> {
+  // If no custom Dockerfile, check if image already exists (may be pre-built)
   const dockerfilePath = customDockerfile ?? bundledDockerfilePath();
-  const dockerfileContent = readFileSync(dockerfilePath, "utf-8");
+  let dockerfileContent: string;
+  try {
+    dockerfileContent = readFileSync(dockerfilePath, "utf-8");
+  } catch {
+    // No Dockerfile available — check if image exists already
+    try {
+      await docker.getImage(imageName).inspect();
+      return; // Image exists, no build needed
+    } catch {
+      throw new Error(`Image '${imageName}' not found and no Dockerfile available to build it.`);
+    }
+  }
   const currentHash = dockerfileHash(dockerfileContent);
 
   const needsBuild = await shouldBuild(imageName, currentHash);
@@ -582,14 +623,15 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   const gid = process.getgid?.() ?? 1000;
 
   const buildContext = dirname(dockerfilePath);
+  const dockerfileName = dockerfilePath.split("/").pop()!;
 
   const stream = await docker.buildImage(
-    { context: buildContext, src: ["."] },
+    { context: buildContext, src: [dockerfileName, ".dockerignore"] },
     {
       t: imageName,
       buildargs: { UID: String(uid), GID: String(gid) },
       labels: { "claude-container.dockerfile-hash": currentHash },
-      dockerfile: "Dockerfile",
+      dockerfile: dockerfileName,
     },
   );
 
@@ -664,10 +706,17 @@ describe("buildMountBinds", () => {
     expect(binds).toContain(`${homedir()}/.claude:/home/claude/.claude:rw`);
   });
 
-  it("includes additional configured mounts with tilde expansion", () => {
-    const extra = [{ host: "~/.gitconfig", container: "/home/claude/.gitconfig", mode: "ro" as const }];
+  it("includes additional configured mounts when host path exists", () => {
+    // Use a path we know exists on any system
+    const extra = [{ host: "/tmp", container: "/data", mode: "ro" as const }];
     const binds = buildMountBinds("/my/project", extra);
-    expect(binds).toContain(`${homedir()}/.gitconfig:/home/claude/.gitconfig:ro`);
+    expect(binds).toContain("/tmp:/data:ro");
+  });
+
+  it("skips mounts when host path does not exist", () => {
+    const extra = [{ host: "/nonexistent/path", container: "/data", mode: "ro" as const }];
+    const binds = buildMountBinds("/my/project", extra);
+    expect(binds).not.toContain("/nonexistent/path:/data:ro");
   });
 });
 
@@ -1034,33 +1083,11 @@ async function main(): Promise<void> {
   // Ensure container is running
   const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
 
-  // Forward remaining args to claude
-  // Collect args that aren't our flags
-  const claudeArgs = process.argv.slice(2).filter((arg) => {
-    if (arg === "--status" || arg === "--stop" || arg === "--reset" || arg === "--list") return false;
-    if (arg === "--dir" || arg === "--mount" || arg === "--env") return false;
-    // Skip values for our flags
-    return true;
-  });
-
-  // Better approach: use everything after our known flags
-  const knownFlags = new Set(["--dir", "--mount", "--env", "--status", "--stop", "--reset", "--list", "--version", "-V"]);
-  const forwardArgs: string[] = [];
-  const rawArgs = process.argv.slice(2);
-  let skip = false;
-  for (const arg of rawArgs) {
-    if (skip) {
-      skip = false;
-      continue;
-    }
-    if (knownFlags.has(arg)) {
-      if (arg === "--dir" || arg === "--mount" || arg === "--env") {
-        skip = true; // skip the next arg (the value)
-      }
-      continue;
-    }
-    forwardArgs.push(arg);
-  }
+  // Forward remaining args to claude.
+  // Use commander's parsed state: program.args contains all non-option arguments.
+  // For unknown options (claude's flags), we use parseOptions to separate them.
+  const parsed = program.parseOptions(process.argv.slice(2));
+  const forwardArgs = parsed.unknown;
 
   const exitCode = await execInContainer(name, forwardArgs);
   process.exit(exitCode);
