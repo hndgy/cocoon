@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   bold, dim, yellow, red, green, gray,
-  stripAnsi, banner, createSpinner, log, warn, success,
+  stripAnsi, banner, createSpinner, log, warn, success, setDebug,
 } from "../src/ui.js";
 
 describe("color helpers", () => {
@@ -62,16 +62,14 @@ describe("banner", () => {
     expect(stripAnsi(output)).toContain("Claude's cozy isolated shell");
   });
 
-  it("has box-drawing characters", () => {
+  it("has tilde border characters", () => {
     const output = stripAnsi(banner("0.1.0"));
-    expect(output).toContain("╭");
-    expect(output).toContain("╰");
-    expect(output).toContain("│");
+    expect(output).toContain("~");
   });
 
-  it("produces four lines", () => {
+  it("produces ten lines", () => {
     const lines = banner("0.1.0").split("\n");
-    expect(lines).toHaveLength(4);
+    expect(lines).toHaveLength(10);
   });
 });
 
@@ -79,6 +77,7 @@ describe("createSpinner", () => {
   let writeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    setDebug(true);
     vi.useFakeTimers();
     writeSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
   });
@@ -86,6 +85,7 @@ describe("createSpinner", () => {
   afterEach(() => {
     vi.useRealTimers();
     writeSpy.mockRestore();
+    setDebug(false);
   });
 
   it("writes spinner frame on start", () => {

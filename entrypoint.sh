@@ -3,6 +3,13 @@ set -e
 
 CONFIG_DIR="${CLAUDE_CONFIG_DIR:-/home/claude/.claude-config}"
 CLAUDE_JSON="$CONFIG_DIR/.claude.json"
+HOST_CONFIG="/home/claude/.host-claude-config"
+
+# Copy credentials from host mount if available
+if [ -f "$HOST_CONFIG/.credentials.json" ]; then
+  cp "$HOST_CONFIG/.credentials.json" "$CONFIG_DIR/.credentials.json"
+  chmod 600 "$CONFIG_DIR/.credentials.json"
+fi
 
 # Ensure bypassPermissionsModeAccepted and hasCompletedOnboarding are set
 # This prevents the login/onboarding screen when using --dangerously-skip-permissions

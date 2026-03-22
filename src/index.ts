@@ -5,12 +5,12 @@ import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { resolveProjectDir, promptUser } from "./utils.js";
-import { log, warn, success, banner, createSpinner, yellow } from "./ui.js";
+import { log, warn, success, banner, createSpinner, yellow, setDebug } from "./ui.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
 import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 import { ensureImage, removeImage } from "./image.js";
 import { ensureContainer, stopContainer, resetContainer, getContainerStatus, listContainers } from "./container.js";
-import { execInContainer, shellInContainer } from "./exec.js";
+import { execInContainer, shellInContainer, loginInContainer } from "./exec.js";
 import Docker from "dockerode";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,12 +44,17 @@ async function main(): Promise<void> {
     .option("--list", "List all cocoon instances")
     .option("--clear", "Remove image and container, rebuild from scratch")
     .option("--shell", "Open a bash shell inside the container")
+    .option("--login", "Log in to Claude inside the container")
+    .option("--share-tmpdir", "Mount host's $TMPDIR read-only (enables drag-and-drop of screenshots)")
     .option("-y, --yes", "Auto-accept config file mounts without prompting")
+    .option("--debug", "Show verbose Docker and startup logs")
     .allowUnknownOption(true)
     .allowExcessArguments(true);
 
   program.parse(process.argv);
   const opts = program.opts();
+
+  if (opts.debug) setDebug(true);
 
   await checkDocker();
 
@@ -83,9 +88,10 @@ async function main(): Promise<void> {
   if (opts.clear) {
     const fileConfig = loadConfig(projectDir);
     const config = mergeConfig(fileConfig, { mounts: [], envs: [] });
-    await resetContainer(projectDir);
-    await removeImage(config.image);
-    success("Cocoon and image cleared. Everything will be rebuilt from scratch.");
+    const clearSpinner = createSpinner("Clearing cocoon and image...");
+    clearSpinner.start();
+    await Promise.all([resetContainer(projectDir), removeImage(config.image)]);
+    clearSpinner.success("Cocoon and image cleared. Everything will be rebuilt from scratch.");
     return;
   }
 
@@ -127,7 +133,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const config = mergeConfig(fileConfig, { mounts: cliMounts, envs: opts.env ?? [] });
+  const config = mergeConfig(fileConfig, { mounts: cliMounts, envs: opts.env ?? [], shareTempDir: opts.shareTmpdir });
 
   // Ensure image exists
   const spinner = createSpinner("Preparing isolated environment...");
@@ -138,8 +144,14 @@ async function main(): Promise<void> {
   // Ensure container is running
   const cocoonSpinner = createSpinner("Spinning up cocoon...");
   cocoonSpinner.start();
-  const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
+  const name = await ensureContainer(projectDir, config.image, config.mounts, config.env, config.shareTempDir);
   cocoonSpinner.success("Cocoon ready. Claude is getting cozy.");
+
+  if (opts.login) {
+    log("Opening Claude login inside cocoon...");
+    const exitCode = await loginInContainer(name);
+    process.exit(exitCode);
+  }
 
   if (opts.shell) {
     log("Opening shell inside cocoon...");

@@ -12,6 +12,7 @@ export interface Config {
   env?: Record<string, string>;
   image?: string;
   dockerfile?: string;
+  shareTempDir?: boolean;
 }
 
 export interface ResolvedConfig {
@@ -19,12 +20,14 @@ export interface ResolvedConfig {
   env: Record<string, string>;
   image: string;
   dockerfile?: string;
+  shareTempDir: boolean;
 }
 
 const DEFAULTS: ResolvedConfig = {
   mounts: [],
   env: {},
   image: "cocoon:latest",
+  shareTempDir: false,
 };
 
 export function loadConfig(projectDir: string): Config | undefined {
@@ -84,12 +87,17 @@ function validateConfig(raw: unknown): Config {
     config.dockerfile = obj.dockerfile;
   }
 
+  if (obj.shareTempDir !== undefined) {
+    if (typeof obj.shareTempDir !== "boolean") throw new Error("Config 'shareTempDir' must be a boolean");
+    config.shareTempDir = obj.shareTempDir;
+  }
+
   return config;
 }
 
 export function mergeConfig(
   fileConfig: Config | undefined,
-  cliOverrides: { mounts: MountConfig[]; envs: string[] },
+  cliOverrides: { mounts: MountConfig[]; envs: string[]; shareTempDir?: boolean },
 ): ResolvedConfig {
   const base = fileConfig ?? { mounts: [] };
 
@@ -106,5 +114,6 @@ export function mergeConfig(
     env,
     image: base.image ?? DEFAULTS.image,
     dockerfile: base.dockerfile,
+    shareTempDir: cliOverrides.shareTempDir ?? base.shareTempDir ?? DEFAULTS.shareTempDir,
   };
 }

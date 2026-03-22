@@ -1,6 +1,6 @@
 {
   "name": "cocoon",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cocoon — Claude's cozy isolated shell",
   "main": "dist/index.js",
   "bin": {
@@ -15,11 +15,24 @@
   },
   "keywords": [
     "claude",
+    "claude-code",
     "docker",
     "container",
-    "sandbox"
+    "sandbox",
+    "isolation",
+    "cli",
+    "ai",
+    "devtools"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hndgy/cocoon.git"
+  },
+  "homepage": "https://github.com/hndgy/cocoon",
+  "bugs": {
+    "url": "https://github.com/hndgy/cocoon/issues"
+  },
   "type": "module",
   "dependencies": {
     "commander": "^14.0.3",

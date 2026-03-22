@@ -8,23 +8,34 @@ export const red = (t: string) => wrap("31", t);
 export const green = (t: string) => wrap("32", t);
 export const gray = (t: string) => wrap("90", t);
 
+let debugMode = false;
+
+export function setDebug(enabled: boolean): void {
+  debugMode = enabled;
+}
+
+export function isDebug(): boolean {
+  return debugMode;
+}
+
 export function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
 export function banner(version: string): string {
-  const title = `${yellow("cocoon")} ${dim(`v${version}`)}`;
-  const subtitle = dim("Claude's cozy isolated shell");
-  const titlePlain = `cocoon v${version}`;
-  const subtitlePlain = "Claude's cozy isolated shell";
-  const width = Math.max(titlePlain.length, subtitlePlain.length) + 4;
-  const top = `  ${dim("╭" + "─".repeat(width) + "╮")}`;
-  const bot = `  ${dim("╰" + "─".repeat(width) + "╯")}`;
-  const pad = (plain: string, styled: string) => {
-    const right = width - plain.length - 2;
-    return `  ${dim("│")}  ${styled}${" ".repeat(right)}${dim("│")}`;
-  };
-  return [top, pad(titlePlain, title), pad(subtitlePlain, subtitle), bot].join("\n");
+  const art = [
+    `          ${dim("~~~~~~~~~~")}`,
+    `        ${dim("~")}  ${yellow("▗▄")}${dim("~~~~")}${yellow("▄▖")}  ${dim("~")}`,
+    `      ${dim("~")}   ${yellow("▐▛███▜▌")}   ${dim("~")}`,
+    `     ${dim("~")}   ${yellow("▝▜█████▛▘")}   ${dim("~")}`,
+    `      ${dim("~")}    ${yellow("▘▘")} ${yellow("▝▝")}    ${dim("~")}`,
+    `        ${dim("~")}          ${dim("~")}`,
+    `         ${dim("~~~~~~~~~~")}`,
+    ``,
+    `     ${yellow("cocoon")} ${dim(`v${version}`)}`,
+    `     ${dim("Claude's cozy isolated shell")}`,
+  ];
+  return art.join("\n");
 }
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -36,7 +47,13 @@ export interface Spinner {
   success(message: string): void;
 }
 
+const NO_OP_SPINNER: Spinner = { start() {}, stop() {}, update() {}, success() {} };
+
 export function createSpinner(message: string): Spinner {
+  if (!debugMode) {
+    return NO_OP_SPINNER;
+  }
+
   let frameIndex = 0;
   let currentMessage = message;
   let interval: ReturnType<typeof setInterval> | null = null;
@@ -74,6 +91,11 @@ export function createSpinner(message: string): Spinner {
 
 export function log(message: string): void {
   process.stderr.write(`${gray("cocoon ·")} ${message}\n`);
+}
+
+export function debug(message: string): void {
+  if (!debugMode) return;
+  process.stderr.write(`${gray("cocoon ·")} ${dim(message)}\n`);
 }
 
 export function warn(message: string): void {

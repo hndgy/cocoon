@@ -5,6 +5,10 @@ export function shellInContainer(containerName: string): Promise<number> {
   return execCommand(containerName, ["bash"]);
 }
 
+export function loginInContainer(containerName: string): Promise<number> {
+  return execCommand(containerName, ["claude", "login"]);
+}
+
 export function execInContainer(
   containerName: string,
   args: string[],

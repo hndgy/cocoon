@@ -1,5 +1,7 @@
 import Docker from "dockerode";
 import { existsSync } from "fs";
+import { resolve } from "path";
+import { homedir } from "os";
 import { expandTilde, containerName } from "./utils.js";
 import { log } from "./ui.js";
 import type { MountConfig } from "./config.js";
@@ -7,7 +9,14 @@ import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 
 const docker = new Docker();
 
-export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]): string[] {
+// Must match HOST_CONFIG in entrypoint.sh
+const HOST_CLAUDE_CONFIG_MOUNT = "/home/claude/.host-claude-config";
+
+function getHostClaudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR ?? resolve(homedir(), ".claude");
+}
+
+export function buildMountBinds(projectDir: string, extraMounts: MountConfig[], shareTempDir = false): string[] {
   // Defense-in-depth: validate even if callers already checked
   validateProjectDir(projectDir);
   validateMounts(extraMounts, "mount");
@@ -15,6 +24,23 @@ export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]):
   const binds = [
     `${projectDir}:/workspace:rw`,
   ];
+
+  // Opt-in: mount macOS temp dir so drag-and-drop file paths (e.g. screenshots)
+  // resolve inside the container. Read-only to limit exposure.
+  // Enabled via --share-tmpdir flag or shareTempDir config option.
+  if (shareTempDir) {
+    const tmpdir = process.env.TMPDIR;
+    if (tmpdir && tmpdir.startsWith("/var/folders/") && existsSync(tmpdir)) {
+      binds.push(`${tmpdir}:${tmpdir}:ro`);
+    }
+  }
+
+  // Auto-mount host's Claude credentials (read-only) so the container
+  // can authenticate without requiring a separate login step.
+  const hostConfigDir = getHostClaudeConfigDir();
+  if (existsSync(hostConfigDir)) {
+    binds.push(`${hostConfigDir}:${HOST_CLAUDE_CONFIG_MOUNT}:ro`);
+  }
 
   for (const mount of extraMounts) {
     const hostPath = expandTilde(mount.host);
@@ -49,6 +75,7 @@ export async function ensureContainer(
   imageName: string,
   mounts: MountConfig[],
   env: Record<string, string>,
+  shareTempDir = false,
 ): Promise<string> {
   const name = containerName(projectDir);
 
@@ -68,7 +95,7 @@ export async function ensureContainer(
   } catch {
     log("Spinning up a fresh cocoon...");
 
-    const binds = buildMountBinds(projectDir, mounts);
+    const binds = buildMountBinds(projectDir, mounts, shareTempDir);
     const envVars = buildEnvVars(env);
 
     await docker.createContainer({
