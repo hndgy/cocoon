@@ -12,10 +12,11 @@ RUN apt-get update && \
       openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code
-
 RUN groupadd -g ${GID} claude || true && \
     useradd -m -u ${UID} -g ${GID} -s /bin/bash claude
+
+# Install Claude Code via native installer
+RUN curl -fsSL https://claude.ai/install.sh | sh
 
 USER claude
 WORKDIR /workspace
