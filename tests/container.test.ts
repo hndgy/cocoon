@@ -6,7 +6,7 @@ describe("buildMountBinds", () => {
   it("includes required mounts for project and claude config", () => {
     const binds = buildMountBinds("/my/project", []);
     expect(binds).toContain("/my/project:/workspace:rw");
-    expect(binds).toContain(`${homedir()}/.claude:/home/claude/.claude-config:rw`);
+    expect(binds).toContain(`${homedir()}/.claude:/home/claude/.claude-host:ro`);
   });
 
   it("includes additional configured mounts when host path exists", () => {

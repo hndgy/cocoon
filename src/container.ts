@@ -10,7 +10,7 @@ export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]):
   const claudeDir = `${homedir()}/.claude`;
   const binds = [
     `${projectDir}:/workspace:rw`,
-    `${claudeDir}:/home/claude/.claude-config:rw`,
+    `${claudeDir}:/home/claude/.claude-host:ro`,
   ];
 
   for (const mount of extraMounts) {
@@ -79,6 +79,11 @@ export async function ensureContainer(
       WorkingDir: "/workspace",
       HostConfig: {
         Binds: binds,
+        Mounts: [{
+          Target: "/home/claude/.claude-config",
+          Source: `${name}-config`,
+          Type: "volume" as const,
+        }],
       },
       Tty: true,
       OpenStdin: true,
