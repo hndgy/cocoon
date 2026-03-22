@@ -10,7 +10,7 @@ export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]):
   const claudeDir = `${homedir()}/.claude`;
   const binds = [
     `${projectDir}:/workspace:rw`,
-    `${claudeDir}:/home/claude/.claude:rw`,
+    `${claudeDir}:/home/claude/.claude-config:rw`,
   ];
 
   for (const mount of extraMounts) {

@@ -20,12 +20,9 @@ USER claude
 SHELL ["/bin/bash", "-c"]
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
+# CLAUDE_CONFIG_DIR tells Claude Code where to find all config + credentials.
+# We mount the host's ~/.claude here so auth persists without keychain issues.
+ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
 WORKDIR /workspace
 
-# At startup, ensure onboarding is marked complete (the bind mount
-# from host overlays ~/.claude, so we can't bake this at build time)
-ENTRYPOINT ["/bin/bash", "-c", "\
-  if [ ! -f \"$HOME/.claude/settings.local.json\" ]; then \
-    echo '{\"hasCompletedOnboarding\":true}' > \"$HOME/.claude/settings.local.json\"; \
-  fi; \
-  exec sleep infinity"]
+ENTRYPOINT ["sleep", "infinity"]
