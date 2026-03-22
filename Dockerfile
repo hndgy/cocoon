@@ -20,6 +20,8 @@ USER claude
 SHELL ["/bin/bash", "-c"]
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
+RUN mkdir -p /home/claude/.claude && \
+    echo '{"hasCompletedOnboarding":true}' > /home/claude/.claude/settings.local.json
 WORKDIR /workspace
 
 ENTRYPOINT ["sleep", "infinity"]
