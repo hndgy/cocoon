@@ -23,6 +23,7 @@ ENV PATH="/home/claude/.local/bin:${PATH}"
 # CLAUDE_CONFIG_DIR: a persistent volume mounted here stores all config + credentials.
 # User logs in once inside the container, credentials persist across restarts.
 ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
+ENV CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS="1"
 RUN mkdir -p /home/claude/.claude-config
 WORKDIR /workspace
 
