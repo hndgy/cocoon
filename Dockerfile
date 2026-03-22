@@ -26,4 +26,8 @@ ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
 RUN mkdir -p /home/claude/.claude-config
 WORKDIR /workspace
 
-ENTRYPOINT ["sleep", "infinity"]
+COPY entrypoint.sh /home/claude/entrypoint.sh
+USER root
+RUN chown ${UID}:${GID} /home/claude/entrypoint.sh && chmod +x /home/claude/entrypoint.sh
+USER claude
+ENTRYPOINT ["/home/claude/entrypoint.sh"]
