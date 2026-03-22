@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     .option("--stop", "Stop the container for current project")
     .option("--reset", "Destroy and recreate the container")
     .option("--list", "List all claude-container instances")
-    .option("--rebuild", "Remove image and container, rebuild from scratch")
+    .option("--clear", "Remove image and container, rebuild from scratch")
     .allowUnknownOption(true)
     .allowExcessArguments(true);
 
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (opts.rebuild) {
+  if (opts.clear) {
     const fileConfig = loadConfig(projectDir);
     const config = mergeConfig(fileConfig, { mounts: [], envs: [] });
     await resetContainer(projectDir);
