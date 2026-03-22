@@ -23,6 +23,7 @@ ENV PATH="/home/claude/.local/bin:${PATH}"
 # CLAUDE_CONFIG_DIR tells Claude Code where to find all config + credentials.
 # We mount the host's ~/.claude here so auth persists without keychain issues.
 ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
+RUN mkdir -p /home/claude/.claude-config
 WORKDIR /workspace
 
 COPY entrypoint.sh /home/claude/entrypoint.sh
