@@ -42,6 +42,7 @@ claude-container   # interactive mode
 | `claude-container --reset` | Destroy and recreate the container |
 | `claude-container --stop` | Stop the container |
 | `claude-container --list` | List all claude-container instances |
+| `claude-container --version` | Show claude-container and Claude Code versions |
 
 ### Flags
 
@@ -49,6 +50,7 @@ claude-container   # interactive mode
 |------|-------------|
 | `--dir <path>` | Project directory to mount (default: `$PWD`) |
 | `--mount <host>:<container>:<mode>` | Additional mount (repeatable) |
+| `--env <KEY=VALUE>` | Additional environment variable (repeatable) |
 
 ## Container Management
 
@@ -56,7 +58,7 @@ claude-container   # interactive mode
 
 Container name: `claude-container-<sha256(absolute-project-path)[:12]>`
 
-Deterministic — the same project directory always maps to the same container.
+The project path is always resolved to an absolute path before hashing (including when provided via `--dir`). This ensures the same physical directory always maps to the same container regardless of how it's referenced.
 
 ### Image
 
@@ -65,7 +67,9 @@ Built locally from a `Dockerfile` bundled with the package:
 - **Base:** `node:lts-slim`
 - **Installs:** `@anthropic-ai/claude-code` globally via npm
 - **Installs:** `git`, `build-essential`, and common dev tools
-- **User:** Non-root `claude` user (UID/GID matched to host user for file permission consistency)
+- **User:** Non-root `claude` user
+
+**UID/GID matching:** The image is built with `--build-arg UID=$(id -u) --build-arg GID=$(id -g)` so the container user's UID/GID matches the host user. This ensures files written in `/workspace` have correct ownership on the host.
 
 The image is built automatically on first run if it doesn't exist. Rebuild is triggered by `--reset` or when the Dockerfile changes (detected via content hash stored as an image label).
 
@@ -79,10 +83,27 @@ The image is built automatically on first run if it doesn't exist. Rebuild is tr
 
 ### TTY Handling
 
-The CLI attaches to the container with full TTY support:
-- Stdin, stdout, stderr are connected
-- Terminal size is forwarded and tracked (SIGWINCH)
+The CLI spawns `docker exec -it <container> claude [args...]` as a child process, inheriting the parent's stdio. This provides reliable TTY passthrough without reimplementing terminal handling via the Docker API.
+
+- Stdin, stdout, stderr are inherited from the parent process
+- Terminal size is forwarded automatically by Docker
+- SIGINT (Ctrl-C) is forwarded to the `claude` process inside the container
+- SIGTERM triggers graceful shutdown of the `claude` process, then stops the container
 - Interactive mode works identically to running `claude` directly
+
+### Signal Handling
+
+| Signal | Behavior |
+|--------|----------|
+| SIGINT (Ctrl-C) | Forwarded to `claude` inside container (default `docker exec` behavior) |
+| SIGTERM | Forward to `claude`, wait for exit, leave container running |
+| SIGWINCH | Terminal resize propagated automatically by Docker |
+
+### Container Exit Behavior
+
+When the `claude` process exits (session ends normally), the container is **left running** in the background for fast re-entry. The CLI process exits with the same exit code as `claude`.
+
+Idle containers consume minimal resources (stopped processes, no CPU). Users can reclaim resources with `claude-container --stop` or `claude-container --list` to see what's running.
 
 ## Mounts
 
@@ -114,6 +135,33 @@ claude-container --mount ~/.ssh:/home/claude/.ssh:ro "help me set up git"
 
 `~` in host paths is expanded to the user's home directory. Relative paths are resolved from the project directory.
 
+## Environment Variables
+
+### Authentication
+
+Claude Code authenticates via `~/.claude` (mounted read-write). No API key environment variable is needed when using OAuth login — the session persists in the mounted config directory.
+
+For API key authentication, `ANTHROPIC_API_KEY` is forwarded automatically if set on the host.
+
+### Forwarding strategy
+
+All environment variables matching these patterns are forwarded from the host into the container:
+
+- `ANTHROPIC_*` (API key, base URL, etc.)
+- `CLAUDE_*` (model, max turns, etc.)
+
+Additional env vars can be configured in `.claude-container.json`:
+
+```json
+{
+  "env": {
+    "CUSTOM_VAR": "value"
+  }
+}
+```
+
+Or via CLI flag: `--env KEY=VALUE` (repeatable).
+
 ## Configuration
 
 ### `.claude-container.json`
@@ -133,8 +181,11 @@ Located in the project root. All fields are optional:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `mounts` | Array | `[]` | Additional bind mounts |
+| `env` | Object | `{}` | Additional environment variables |
 | `image` | String | `claude-container:latest` | Image name to use/build |
 | `dockerfile` | String | bundled Dockerfile | Path to custom Dockerfile |
+
+**`image` and `dockerfile` interaction:** `dockerfile` specifies what to build; `image` specifies the tag to apply. If only `image` is set to an existing image, no build occurs. If `dockerfile` is set, the image is built from it and tagged with `image`. They are complementary, not conflicting.
 
 ## Project Structure
 
@@ -155,8 +206,10 @@ claude-container/
 
 | Package | Purpose |
 |---------|---------|
-| `dockerode` | Docker Engine API client |
+| `dockerode` | Docker Engine API client (image build, container create/start/stop/inspect) |
 | `commander` | CLI argument parsing |
+
+TTY attachment uses `docker exec -it` via `child_process.spawn` (inheriting stdio) rather than the `dockerode` attach API, which avoids TTY passthrough complexity.
 
 Dev dependencies: `typescript`, `@types/node`, `@types/dockerode`
 
@@ -167,7 +220,8 @@ Dev dependencies: `typescript`, `@types/node`, `@types/dockerode`
 | Docker not running | Exit with clear message: "Docker is not running. Please start Docker and try again." |
 | Image not built | Auto-build on first run |
 | Container in bad state | Suggest `--reset` |
-| Mount path doesn't exist | Warning, skip the mount |
+| Required mount doesn't exist (`~/.claude`) | Exit with error: "`~/.claude` not found. Run `claude` on the host first to set up authentication." |
+| Optional mount doesn't exist | Warning, skip the mount |
 | Config file invalid | Exit with validation error pointing to the problematic field |
 
 ## Security Considerations
@@ -176,5 +230,5 @@ Dev dependencies: `typescript`, `@types/node`, `@types/dockerode`
 - Host filesystem access is limited to explicitly mounted directories
 - `~/.claude` is mounted read-write (required for auth persistence)
 - No `--privileged` flag
-- No host network mode — container uses default bridge network
+- No host network mode — container uses default bridge network (outbound HTTPS access to Anthropic API is allowed via default bridge NAT)
 - No capability escalation
