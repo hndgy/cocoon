@@ -625,8 +625,14 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   const buildContext = dirname(dockerfilePath);
   const dockerfileName = dockerfilePath.split("/").pop()!;
 
+  const srcFiles = [dockerfileName];
+  try {
+    readFileSync(resolve(buildContext, ".dockerignore"));
+    srcFiles.push(".dockerignore");
+  } catch { /* no .dockerignore, that's fine */ }
+
   const stream = await docker.buildImage(
-    { context: buildContext, src: [dockerfileName, ".dockerignore"] },
+    { context: buildContext, src: srcFiles },
     {
       t: imageName,
       buildargs: { UID: String(uid), GID: String(gid) },
@@ -1084,10 +1090,13 @@ async function main(): Promise<void> {
   const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
 
   // Forward remaining args to claude.
-  // Use commander's parsed state: program.args contains all non-option arguments.
-  // For unknown options (claude's flags), we use parseOptions to separate them.
+  // program.args contains positional args not consumed by our options.
+  // program.parseOptions separates known from unknown flags.
+  // We need both positional args (prompts) and unknown flags (claude's flags).
   const parsed = program.parseOptions(process.argv.slice(2));
-  const forwardArgs = parsed.unknown;
+  // Operands include positional args AND values consumed by our flags (--dir value).
+  // program.args has only the non-consumed positional args after parse().
+  const forwardArgs = [...program.args, ...parsed.unknown];
 
   const exitCode = await execInContainer(name, forwardArgs);
   process.exit(exitCode);
