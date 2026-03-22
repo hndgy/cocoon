@@ -20,8 +20,12 @@ USER claude
 SHELL ["/bin/bash", "-c"]
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
-RUN mkdir -p /home/claude/.claude && \
-    echo '{"hasCompletedOnboarding":true}' > /home/claude/.claude/settings.local.json
 WORKDIR /workspace
 
-ENTRYPOINT ["sleep", "infinity"]
+# At startup, ensure onboarding is marked complete (the bind mount
+# from host overlays ~/.claude, so we can't bake this at build time)
+ENTRYPOINT ["/bin/bash", "-c", "\
+  if [ ! -f \"$HOME/.claude/settings.local.json\" ]; then \
+    echo '{\"hasCompletedOnboarding\":true}' > \"$HOME/.claude/settings.local.json\"; \
+  fi; \
+  exec sleep infinity"]
