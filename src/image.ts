@@ -47,10 +47,12 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   const dockerfileName = dockerfilePath.split("/").pop()!;
 
   const srcFiles = [dockerfileName];
-  try {
-    readFileSync(resolve(buildContext, ".dockerignore"));
-    srcFiles.push(".dockerignore");
-  } catch { /* no .dockerignore, that's fine */ }
+  for (const extra of [".dockerignore", "entrypoint.sh"]) {
+    try {
+      readFileSync(resolve(buildContext, extra));
+      srcFiles.push(extra);
+    } catch { /* file doesn't exist, that's fine */ }
+  }
 
   const stream = await docker.buildImage(
     { context: buildContext, src: srcFiles },

@@ -25,4 +25,6 @@ ENV PATH="/home/claude/.local/bin:${PATH}"
 ENV CLAUDE_CONFIG_DIR="/home/claude/.claude-config"
 WORKDIR /workspace
 
-ENTRYPOINT ["sleep", "infinity"]
+COPY --chown=claude:claude entrypoint.sh /home/claude/entrypoint.sh
+RUN chmod +x /home/claude/entrypoint.sh
+ENTRYPOINT ["/home/claude/entrypoint.sh"]
