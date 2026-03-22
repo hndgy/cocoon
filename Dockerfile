@@ -17,7 +17,8 @@ RUN groupadd -g ${GID} claude || true && \
 
 # Install Claude Code via native installer as claude user
 USER claude
-RUN curl -fsSL https://claude.ai/install.sh | sh
+SHELL ["/bin/bash", "-c"]
+RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
 WORKDIR /workspace
 

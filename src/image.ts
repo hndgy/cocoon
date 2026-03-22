@@ -66,7 +66,10 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     docker.modem.followProgress(stream, (err: Error | null) => {
       if (err) reject(err);
       else resolve();
-    }, (event: { stream?: string }) => {
+    }, (event: { stream?: string; error?: string; errorDetail?: { message?: string } }) => {
+      if (event.error) {
+        reject(new Error(event.errorDetail?.message ?? event.error));
+      }
       if (event.stream) {
         const line = event.stream.trim();
         if (line) log(line);
