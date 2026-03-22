@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
+import { log, warn } from "./ui.js";
 
 export function shellInContainer(containerName: string): Promise<number> {
+  log("Attaching shell to isolated environment...");
   return execCommand(containerName, ["bash"]);
 }
 
@@ -8,7 +10,10 @@ export function execInContainer(
   containerName: string,
   args: string[],
 ): Promise<number> {
-  return execCommand(containerName, ["claude", "--dangerously-skip-permissions", ...args]);
+  const claudeArgs = ["claude", "--dangerously-skip-permissions", ...args];
+  log("WARNING: Claude is running with --dangerously-skip-permissions. All actions will be auto-approved.");
+  log("Starting Claude inside isolated environment...");
+  return execCommand(containerName, claudeArgs);
 }
 
 function execCommand(

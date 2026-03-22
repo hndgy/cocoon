@@ -14,7 +14,7 @@ describe("CLI integration", () => {
 
   it("shows help with --help", () => {
     const output = execSync(`node ${cli} --help`, { encoding: "utf-8" });
-    expect(output).toContain("claude-container");
+    expect(output).toContain("cocoon");
     expect(output).toContain("--dir");
     expect(output).toContain("--mount");
   });

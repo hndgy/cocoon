@@ -1,11 +1,17 @@
 import Docker from "dockerode";
 import { existsSync } from "fs";
-import { expandTilde, containerName, log } from "./utils.js";
+import { expandTilde, containerName } from "./utils.js";
+import { log } from "./ui.js";
 import type { MountConfig } from "./config.js";
+import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 
 const docker = new Docker();
 
 export function buildMountBinds(projectDir: string, extraMounts: MountConfig[]): string[] {
+  // Defense-in-depth: validate even if callers already checked
+  validateProjectDir(projectDir);
+  validateMounts(extraMounts, "mount");
+
   const binds = [
     `${projectDir}:/workspace:rw`,
   ];
@@ -51,13 +57,16 @@ export async function ensureContainer(
     const info = await container.inspect();
 
     if (!info.State.Running) {
-      log("Starting existing container...");
+      log("Resuming existing isolated environment...");
       await container.start();
+      log("Environment resumed.");
+    } else {
+      log("Reusing active isolated environment.");
     }
 
     return name;
   } catch {
-    log("Creating new container...");
+    log("Provisioning new isolated environment...");
 
     const binds = buildMountBinds(projectDir, mounts);
     const envVars = buildEnvVars(env);
@@ -81,7 +90,7 @@ export async function ensureContainer(
 
     const container = docker.getContainer(name);
     await container.start();
-    log("Container started.");
+    log("Isolated environment provisioned and running.");
     return name;
   }
 }
@@ -123,16 +132,16 @@ export async function getContainerStatus(projectDir: string): Promise<string> {
 export async function listContainers(): Promise<string> {
   const containers = await docker.listContainers({ all: true });
   const ours = containers.filter((c) =>
-    c.Names.some((n) => n.replace(/^\//, "").startsWith("claude-container-")),
+    c.Names.some((n) => n.replace(/^\//, "").startsWith("cocoon-")),
   );
 
   if (ours.length === 0) {
-    return "No claude-container instances found.";
+    return "No cocoon instances found.";
   }
 
   const lines = ours.map((c) => {
     const name = c.Names[0].replace(/^\//, "");
     return `  ${name}  ${c.State}  ${c.Status}`;
   });
-  return `Claude containers:\n${lines.join("\n")}`;
+  return `Cocoon instances:\n${lines.join("\n")}`;
 }

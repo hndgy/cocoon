@@ -7,7 +7,7 @@ describe("mergeConfig", () => {
     const config = mergeConfig(undefined, { mounts: [], envs: [] });
     expect(config.mounts).toEqual([]);
     expect(config.env).toEqual({});
-    expect(config.image).toBe("claude-container:latest");
+    expect(config.image).toBe("cocoon:latest");
   });
 
   it("merges file config with CLI overrides", () => {

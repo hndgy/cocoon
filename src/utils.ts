@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { homedir } from "os";
 import { resolve } from "path";
+import { createInterface } from "readline";
 
 export function expandTilde(filePath: string): string {
   if (filePath === "~") {
@@ -23,9 +24,15 @@ export function resolveProjectDir(dir: string): string {
 
 export function containerName(projectDir: string): string {
   const absolute = resolveProjectDir(projectDir);
-  return `claude-container-${hashProjectPath(absolute)}`;
+  return `cocoon-${hashProjectPath(absolute)}`;
 }
 
-export function log(message: string): void {
-  console.error(`[claude-container] ${message}`);
+export function promptUser(question: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
 }

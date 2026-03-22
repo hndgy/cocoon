@@ -1,10 +1,10 @@
 {
-  "name": "claude-container",
+  "name": "cocoon",
   "version": "0.1.0",
-  "description": "Run Claude Code in a Docker container for sandboxing and security",
+  "description": "Cocoon — Claude's cozy isolated shell",
   "main": "dist/index.js",
   "bin": {
-    "claude-container": "dist/index.js"
+    "cocoon": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { log } from "./utils.js";
+import { log } from "./ui.js";
 
 const docker = new Docker();
 
@@ -59,7 +59,7 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     {
       t: imageName,
       buildargs: { UID: String(uid), GID: String(gid) },
-      labels: { "claude-container.dockerfile-hash": currentHash },
+      labels: { "cocoon.dockerfile-hash": currentHash },
       dockerfile: dockerfileName,
     },
   );
@@ -96,7 +96,7 @@ async function shouldBuild(imageName: string, currentHash: string): Promise<bool
   try {
     const image = docker.getImage(imageName);
     const info = await image.inspect();
-    const storedHash = info.Config?.Labels?.["claude-container.dockerfile-hash"];
+    const storedHash = info.Config?.Labels?.["cocoon.dockerfile-hash"];
     if (storedHash === currentHash) {
       return false;
     }

@@ -4,8 +4,10 @@ import { Command } from "commander";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { resolveProjectDir, log } from "./utils.js";
+import { resolveProjectDir, promptUser } from "./utils.js";
+import { log, warn, success } from "./ui.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
+import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 import { ensureImage, removeImage } from "./image.js";
 import { ensureContainer, stopContainer, resetContainer, getContainerStatus, listContainers } from "./container.js";
 import { execInContainer, shellInContainer } from "./exec.js";
@@ -30,8 +32,8 @@ async function main(): Promise<void> {
   const program = new Command();
 
   program
-    .name("claude-container")
-    .description("Run Claude Code in a Docker container")
+    .name("cocoon")
+    .description("Claude's cozy isolated shell")
     .version(pkg.version)
     .option("--dir <path>", "Project directory to mount", process.cwd())
     .option("--mount <spec...>", "Additional mount in host:container:mode format")
@@ -39,9 +41,10 @@ async function main(): Promise<void> {
     .option("--status", "Show container status for current project")
     .option("--stop", "Stop the container for current project")
     .option("--reset", "Destroy and recreate the container")
-    .option("--list", "List all claude-container instances")
+    .option("--list", "List all cocoon instances")
     .option("--clear", "Remove image and container, rebuild from scratch")
     .option("--shell", "Open a bash shell inside the container")
+    .option("-y, --yes", "Auto-accept config file mounts without prompting")
     .allowUnknownOption(true)
     .allowExcessArguments(true);
 
@@ -51,6 +54,7 @@ async function main(): Promise<void> {
   await checkDocker();
 
   const projectDir = resolveProjectDir(opts.dir);
+  validateProjectDir(projectDir);
 
   // Management commands
   if (opts.list) {
@@ -97,17 +101,43 @@ async function main(): Promise<void> {
     };
   });
 
+  // Validate CLI mounts early
+  validateMounts(cliMounts, "cli");
+
   // Load and merge config
   const fileConfig = loadConfig(projectDir);
+
+  // Warn user about config-file mounts (untrusted source)
+  if (fileConfig?.mounts && fileConfig.mounts.length > 0) {
+    validateMounts(fileConfig.mounts, "config file");
+    if (opts.yes) {
+      log("Auto-accepting config file mounts (--yes flag).");
+    } else {
+      log(`WARNING: .cocoon.json requests ${fileConfig.mounts.length} host mount(s):`);
+      for (const m of fileConfig.mounts) {
+        log(`  ${m.host} -> ${m.container} (${m.mode})`);
+      }
+      const answer = await promptUser("cocoon: Allow these mounts? [y/N] ");
+      if (!["y", "yes"].includes(answer.trim().toLowerCase())) {
+        log("Aborted by user.");
+        process.exit(1);
+      }
+    }
+  }
+
   const config = mergeConfig(fileConfig, { mounts: cliMounts, envs: opts.env ?? [] });
 
   // Ensure image exists
+  log("Preparing isolated environment...");
   await ensureImage(config.image, config.dockerfile);
 
   // Ensure container is running
+  log(`Encapsulating Claude for project: ${projectDir}`);
   const name = await ensureContainer(projectDir, config.image, config.mounts, config.env);
+  log("Isolated environment ready.");
 
   if (opts.shell) {
+    log("Opening shell in isolated environment...");
     const exitCode = await shellInContainer(name);
     process.exit(exitCode);
   }
@@ -121,6 +151,7 @@ async function main(): Promise<void> {
   // program.args has only the non-consumed positional args after parse().
   const forwardArgs = [...program.args, ...parsed.unknown];
 
+  log("Launching Claude in isolated environment...");
   const exitCode = await execInContainer(name, forwardArgs);
   process.exit(exitCode);
 }

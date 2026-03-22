@@ -57,8 +57,8 @@ describe("resolveProjectDir", () => {
 });
 
 describe("containerName", () => {
-  it("returns claude-container-<hash> format", () => {
+  it("returns cocoon-<hash> format", () => {
     const result = containerName("/some/project");
-    expect(result).toMatch(/^claude-container-[a-f0-9]{12}$/);
+    expect(result).toMatch(/^cocoon-[a-f0-9]{12}$/);
   });
 });

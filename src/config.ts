@@ -24,11 +24,11 @@ export interface ResolvedConfig {
 const DEFAULTS: ResolvedConfig = {
   mounts: [],
   env: {},
-  image: "claude-container:latest",
+  image: "cocoon:latest",
 };
 
 export function loadConfig(projectDir: string): Config | undefined {
-  const configPath = join(projectDir, ".claude-container.json");
+  const configPath = join(projectDir, ".cocoon.json");
   if (!existsSync(configPath)) {
     return undefined;
   }

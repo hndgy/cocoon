@@ -18,6 +18,15 @@ describe("buildMountBinds", () => {
     const binds = buildMountBinds("/my/project", extra);
     expect(binds).not.toContain("/nonexistent/path:/data:ro");
   });
+
+  it("rejects mounts to blocked paths like /etc/shadow", () => {
+    const extra = [{ host: "/etc/shadow", container: "/data/shadow", mode: "ro" as const }];
+    expect(() => buildMountBinds("/my/project", extra)).toThrow(/blocked/i);
+  });
+
+  it("rejects root path as project dir", () => {
+    expect(() => buildMountBinds("/", [])).toThrow(/blocked/i);
+  });
 });
 
 describe("buildEnvVars", () => {
