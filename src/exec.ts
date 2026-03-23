@@ -23,13 +23,17 @@ function execCommand(
   command: string[],
 ): Promise<number> {
   return new Promise((resolve) => {
-    const dockerArgs = [
-      "exec",
-      "-it",
-      "-w", "/workspace",
-      containerName,
-      ...command,
-    ];
+    const isPrint = command.includes("--print") || command.includes("-p");
+    const dockerArgs = ["exec"];
+    if (isPrint) {
+      // --print: non-interactive, no TTY needed — skip -i/-t so Claude
+      // doesn't hang waiting on stdin and output flows back to the caller
+    } else if (process.stdin.isTTY) {
+      dockerArgs.push("-it");
+    } else {
+      dockerArgs.push("-i");
+    }
+    dockerArgs.push("-w", "/workspace", containerName, ...command);
 
     const child = spawn("docker", dockerArgs, {
       stdio: "inherit",

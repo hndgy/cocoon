@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import { readFileSync } from "fs";
-import { resolve, dirname } from "path";
+import { resolve, dirname, basename } from "path";
 import { fileURLToPath } from "url";
 import { resolveProjectDir, promptUser } from "./utils.js";
 import { log, warn, success, banner, createSpinner, yellow, setDebug } from "./ui.js";
@@ -37,6 +37,7 @@ async function main(): Promise<void> {
     .version(pkg.version)
     .option("--dir <path>", "Project directory to mount", process.cwd())
     .option("--mount <spec...>", "Additional mount in host:container:mode format")
+    .option("--link <dirs...>", "Link other directories into the container (read-only at /linked/<name>)")
     .option("--env <vars...>", "Additional env vars in KEY=VALUE format")
     .option("--status", "Show container status for current project")
     .option("--stop", "Stop the container for current project")
@@ -56,12 +57,12 @@ async function main(): Promise<void> {
 
   if (opts.debug) setDebug(true);
 
+  const projectDir = resolveProjectDir(opts.dir);
+  validateProjectDir(projectDir);
+
   await checkDocker();
 
   process.stderr.write(banner(pkg.version) + "\n\n");
-
-  const projectDir = resolveProjectDir(opts.dir);
-  validateProjectDir(projectDir);
 
   // Management commands
   if (opts.list) {
@@ -108,6 +109,15 @@ async function main(): Promise<void> {
       mode: (parts[2] as "ro" | "rw") ?? "rw",
     };
   });
+
+  // Convert --link dirs into read-only mounts at /linked/<name>
+  const linkMounts: MountConfig[] = (opts.link ?? []).map((dir: string) => ({
+    host: resolve(dir),
+    container: `/linked/${basename(resolve(dir))}`,
+    mode: "ro" as const,
+  }));
+
+  cliMounts.push(...linkMounts);
 
   // Validate CLI mounts early
   validateMounts(cliMounts, "cli");
