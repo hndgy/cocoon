@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  bold, dim, yellow, red, green, gray,
-  stripAnsi, banner, createSpinner, log, warn, success, setDebug,
+  bold,
+  dim,
+  yellow,
+  red,
+  green,
+  gray,
+  stripAnsi,
+  banner,
+  createSpinner,
+  log,
+  warn,
+  success,
+  setDebug,
 } from "../src/ui.js";
 
 describe("color helpers", () => {
@@ -92,7 +103,7 @@ describe("createSpinner", () => {
     const spinner = createSpinner("loading");
     spinner.start();
     expect(writeSpy).toHaveBeenCalled();
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("loading");
     spinner.stop();
   });
@@ -111,7 +122,7 @@ describe("createSpinner", () => {
     spinner.start();
     spinner.update("second");
     vi.advanceTimersByTime(80);
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("second");
     spinner.stop();
   });
@@ -120,7 +131,7 @@ describe("createSpinner", () => {
     const spinner = createSpinner("doing");
     spinner.start();
     spinner.success("done!");
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("✔");
     expect(stripAnsi(output)).toContain("done!");
   });
@@ -139,21 +150,21 @@ describe("styled log functions", () => {
 
   it("log writes prefixed message to stderr", () => {
     log("hello world");
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("cocoon ·");
     expect(stripAnsi(output)).toContain("hello world");
   });
 
   it("warn writes prefixed warning to stderr", () => {
     warn("danger");
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("cocoon ⚠");
     expect(stripAnsi(output)).toContain("danger");
   });
 
   it("success writes prefixed success to stderr", () => {
     success("all good");
-    const output = writeSpy.mock.calls.map(c => String(c[0])).join("");
+    const output = writeSpy.mock.calls.map((c) => String(c[0])).join("");
     expect(stripAnsi(output)).toContain("cocoon ✔");
     expect(stripAnsi(output)).toContain("all good");
   });

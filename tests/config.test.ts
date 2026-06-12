@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loadConfig, mergeConfig, type Config, type MountConfig } from "../src/config.js";
-import { homedir } from "os";
+import { describe, it, expect } from "vitest";
+import { mergeConfig, type Config } from "../src/config.js";
 
 describe("mergeConfig", () => {
   it("returns defaults when no config file", () => {

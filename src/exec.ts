@@ -9,19 +9,13 @@ export function loginInContainer(containerName: string): Promise<number> {
   return execCommand(containerName, ["claude", "login"]);
 }
 
-export function execInContainer(
-  containerName: string,
-  args: string[],
-): Promise<number> {
+export function execInContainer(containerName: string, args: string[]): Promise<number> {
   const claudeArgs = ["claude", "--dangerously-skip-permissions", ...args];
   warn("Claude has full autonomy inside the cocoon. All actions auto-approved.");
   return execCommand(containerName, claudeArgs);
 }
 
-function execCommand(
-  containerName: string,
-  command: string[],
-): Promise<number> {
+function execCommand(containerName: string, command: string[]): Promise<number> {
   return new Promise((resolve) => {
     const isPrint = command.includes("--print") || command.includes("-p");
     const dockerArgs = ["exec"];

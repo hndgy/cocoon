@@ -9,7 +9,13 @@ import { log, warn, success, banner, createSpinner, yellow, setDebug } from "./u
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
 import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 import { ensureImage, removeImage } from "./image.js";
-import { ensureContainer, stopContainer, resetContainer, getContainerStatus, listContainers } from "./container.js";
+import {
+  ensureContainer,
+  stopContainer,
+  resetContainer,
+  getContainerStatus,
+  listContainers,
+} from "./container.js";
 import { execInContainer, shellInContainer, loginInContainer } from "./exec.js";
 import Docker from "dockerode";
 
@@ -37,7 +43,10 @@ async function main(): Promise<void> {
     .version(pkg.version)
     .option("--dir <path>", "Project directory to mount", process.cwd())
     .option("--mount <spec...>", "Additional mount in host:container:mode format")
-    .option("--link <dirs...>", "Link other directories into the container (read-only at /linked/<name>)")
+    .option(
+      "--link <dirs...>",
+      "Link other directories into the container (read-only at /linked/<name>)",
+    )
     .option("--env <vars...>", "Additional env vars in KEY=VALUE format")
     .option("--status", "Show container status for current project")
     .option("--stop", "Stop the container for current project")
@@ -46,7 +55,10 @@ async function main(): Promise<void> {
     .option("--clear", "Remove image and container, rebuild from scratch")
     .option("--shell", "Open a bash shell inside the container")
     .option("--login", "Log in to Claude inside the container")
-    .option("--share-tmpdir", "Mount host's $TMPDIR read-only (enables drag-and-drop of screenshots)")
+    .option(
+      "--share-tmpdir",
+      "Mount host's $TMPDIR read-only (enables drag-and-drop of screenshots)",
+    )
     .option("-y, --yes", "Auto-accept config file mounts without prompting")
     .option("--debug", "Show verbose Docker and startup logs")
     .allowUnknownOption(true)
@@ -143,7 +155,11 @@ async function main(): Promise<void> {
     }
   }
 
-  const config = mergeConfig(fileConfig, { mounts: cliMounts, envs: opts.env ?? [], shareTempDir: opts.shareTmpdir });
+  const config = mergeConfig(fileConfig, {
+    mounts: cliMounts,
+    envs: opts.env ?? [],
+    shareTempDir: opts.shareTmpdir,
+  });
 
   // Ensure image exists
   const spinner = createSpinner("Preparing isolated environment...");
@@ -154,7 +170,13 @@ async function main(): Promise<void> {
   // Ensure container is running
   const cocoonSpinner = createSpinner("Spinning up cocoon...");
   cocoonSpinner.start();
-  const name = await ensureContainer(projectDir, config.image, config.mounts, config.env, config.shareTempDir);
+  const name = await ensureContainer(
+    projectDir,
+    config.image,
+    config.mounts,
+    config.env,
+    config.shareTempDir,
+  );
   cocoonSpinner.success("Cocoon ready. Claude is getting cozy.");
 
   if (opts.login) {

@@ -51,7 +51,9 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     try {
       readFileSync(resolve(buildContext, extra));
       srcFiles.push(extra);
-    } catch { /* file doesn't exist, that's fine */ }
+    } catch {
+      /* file doesn't exist, that's fine */
+    }
   }
 
   const stream = await docker.buildImage(
@@ -65,18 +67,22 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   );
 
   await new Promise<void>((resolve, reject) => {
-    docker.modem.followProgress(stream, (err: Error | null) => {
-      if (err) reject(err);
-      else resolve();
-    }, (event: { stream?: string; error?: string; errorDetail?: { message?: string } }) => {
-      if (event.error) {
-        reject(new Error(event.errorDetail?.message ?? event.error));
-      }
-      if (event.stream) {
-        const line = event.stream.trim();
-        if (line) log(dim(line));
-      }
-    });
+    docker.modem.followProgress(
+      stream,
+      (err: Error | null) => {
+        if (err) reject(err);
+        else resolve();
+      },
+      (event: { stream?: string; error?: string; errorDetail?: { message?: string } }) => {
+        if (event.error) {
+          reject(new Error(event.errorDetail?.message ?? event.error));
+        }
+        if (event.stream) {
+          const line = event.stream.trim();
+          if (line) log(dim(line));
+        }
+      },
+    );
   });
 
   log("Image woven successfully.");

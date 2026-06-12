@@ -3,12 +3,12 @@ import { homedir } from "os";
 import { resolve } from "path";
 import { createInterface } from "readline";
 
-export function expandTilde(filePath: string): string {
+export function expandTilde(filePath: string, home: string = homedir()): string {
   if (filePath === "~") {
-    return homedir();
+    return home;
   }
   if (filePath.startsWith("~/")) {
-    return `${homedir()}/${filePath.slice(2)}`;
+    return `${home}/${filePath.slice(2)}`;
   }
   return filePath;
 }
