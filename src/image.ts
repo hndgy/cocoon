@@ -31,7 +31,20 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
       throw new Error(`Image '${imageName}' not found and no Dockerfile available to build it.`);
     }
   }
-  const currentHash = dockerfileHash(dockerfileContent);
+
+  const buildContext = dirname(dockerfilePath);
+
+  // Hash the Dockerfile *and* the other files baked into the image so that
+  // editing entrypoint.sh (or .dockerignore) invalidates the cache and rebuilds.
+  let hashSource = dockerfileContent;
+  for (const sibling of ["entrypoint.sh", ".dockerignore"]) {
+    try {
+      hashSource += "\0" + readFileSync(resolve(buildContext, sibling), "utf-8");
+    } catch {
+      /* optional file, ignore if absent */
+    }
+  }
+  const currentHash = dockerfileHash(hashSource);
 
   const needsBuild = await shouldBuild(imageName, currentHash);
   if (!needsBuild) {
@@ -43,7 +56,6 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   const uid = process.getuid?.() ?? 1000;
   const gid = process.getgid?.() ?? 1000;
 
-  const buildContext = dirname(dockerfilePath);
   const dockerfileName = dockerfilePath.split("/").pop()!;
 
   const srcFiles = [dockerfileName];
@@ -51,7 +63,9 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     try {
       readFileSync(resolve(buildContext, extra));
       srcFiles.push(extra);
-    } catch { /* file doesn't exist, that's fine */ }
+    } catch {
+      /* file doesn't exist, that's fine */
+    }
   }
 
   const stream = await docker.buildImage(
@@ -65,18 +79,22 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   );
 
   await new Promise<void>((resolve, reject) => {
-    docker.modem.followProgress(stream, (err: Error | null) => {
-      if (err) reject(err);
-      else resolve();
-    }, (event: { stream?: string; error?: string; errorDetail?: { message?: string } }) => {
-      if (event.error) {
-        reject(new Error(event.errorDetail?.message ?? event.error));
-      }
-      if (event.stream) {
-        const line = event.stream.trim();
-        if (line) log(dim(line));
-      }
-    });
+    docker.modem.followProgress(
+      stream,
+      (err: Error | null) => {
+        if (err) reject(err);
+        else resolve();
+      },
+      (event: { stream?: string; error?: string; errorDetail?: { message?: string } }) => {
+        if (event.error) {
+          reject(new Error(event.errorDetail?.message ?? event.error));
+        }
+        if (event.stream) {
+          const line = event.stream.trim();
+          if (line) log(dim(line));
+        }
+      },
+    );
   });
 
   log("Image woven successfully.");

@@ -62,10 +62,13 @@ function validateConfig(raw: unknown): Config {
         throw new Error(`Config 'mounts[${i}]' must be an object`);
       }
       const mount = m as Record<string, unknown>;
-      if (typeof mount.host !== "string") throw new Error(`Config 'mounts[${i}].host' must be a string`);
-      if (typeof mount.container !== "string") throw new Error(`Config 'mounts[${i}].container' must be a string`);
+      if (typeof mount.host !== "string")
+        throw new Error(`Config 'mounts[${i}].host' must be a string`);
+      if (typeof mount.container !== "string")
+        throw new Error(`Config 'mounts[${i}].container' must be a string`);
       const mode = mount.mode ?? "rw";
-      if (mode !== "ro" && mode !== "rw") throw new Error(`Config 'mounts[${i}].mode' must be "ro" or "rw"`);
+      if (mode !== "ro" && mode !== "rw")
+        throw new Error(`Config 'mounts[${i}].mode' must be "ro" or "rw"`);
       return { host: mount.host, container: mount.container, mode: mode as "ro" | "rw" };
     });
   }
@@ -88,7 +91,8 @@ function validateConfig(raw: unknown): Config {
   }
 
   if (obj.shareTempDir !== undefined) {
-    if (typeof obj.shareTempDir !== "boolean") throw new Error("Config 'shareTempDir' must be a boolean");
+    if (typeof obj.shareTempDir !== "boolean")
+      throw new Error("Config 'shareTempDir' must be a boolean");
     config.shareTempDir = obj.shareTempDir;
   }
 

@@ -75,21 +75,22 @@ cocoon --model sonnet --verbose
 cocoon [options] [claude-args...]
 ```
 
-| Option | Description |
-|---|---|
-| `--dir <path>` | Project directory to mount (default: cwd) |
-| `--mount <spec...>` | Additional mounts as `host:container:mode` |
-| `--env <vars...>` | Environment variables as `KEY=VALUE` |
-| `--share-tmpdir` | Mount host `$TMPDIR` read-only (macOS drag-and-drop) |
-| `--shell` | Open a bash shell inside the container |
-| `--login` | Log in to Claude inside the container |
-| `--status` | Show container status for current project |
-| `--list` | List all cocoon instances |
-| `--stop` | Stop the container for current project |
-| `--reset` | Destroy and recreate the container |
-| `--clear` | Remove image and container, full rebuild |
-| `--debug` | Verbose Docker and startup logs |
-| `-y, --yes` | Auto-accept config file mounts |
+| Option              | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `--dir <path>`      | Project directory to mount (default: cwd)               |
+| `--mount <spec...>` | Additional mounts as `host:container:mode`              |
+| `--link <dirs...>`  | Link other directories in read-only at `/linked/<name>` |
+| `--env <vars...>`   | Environment variables as `KEY=VALUE`                    |
+| `--share-tmpdir`    | Mount host `$TMPDIR` read-only (macOS drag-and-drop)    |
+| `--shell`           | Open a bash shell inside the container                  |
+| `--login`           | Log in to Claude inside the container                   |
+| `--status`          | Show container status for current project               |
+| `--list`            | List all cocoon instances                               |
+| `--stop`            | Stop the container for current project                  |
+| `--reset`           | Destroy and recreate the container                      |
+| `--clear`           | Remove image and container, full rebuild                |
+| `--debug`           | Verbose Docker and startup logs                         |
+| `-y, --yes`         | Auto-accept config file mounts                          |
 
 Any unrecognized flags and positional arguments are forwarded to Claude Code.
 
@@ -131,15 +132,18 @@ Cocoon manages one container per project directory (named by hashing the path):
 
 ## Security
 
-Cocoon is a sandbox, not a fortress. The design philosophy: give Claude maximum autonomy *inside the container* while keeping your host safe.
+Cocoon is a sandbox, not a fortress. The design philosophy: give Claude maximum autonomy _inside the container_ while keeping your host safe.
 
 **What cocoon does:**
+
 - Mounts your project directory read-write (it needs to edit your code)
-- Mounts host Claude credentials read-only (so you don't need to log in again)
+- Carries your host Claude login into the container so you don't log in again — from
+  `~/.claude/.credentials.json` or, on macOS, the login Keychain
 - Blocks mounting sensitive host paths (`/`, `/etc`, `~/.ssh`, `~/.aws`, `~/.gnupg`, etc.)
 - Prompts before honoring mounts from `.cocoon.json`
 
 **What cocoon does not do (yet):**
+
 - Drop Linux capabilities
 - Enforce CPU/memory limits
 - Restrict network access
@@ -157,6 +161,10 @@ npm run build        # compile TypeScript
 npm run dev          # watch mode
 npm test             # run tests
 npm run test:watch   # watch tests
+npm run lint         # ESLint
+npm run format       # format with Prettier
+npm run typecheck    # type-check src + tests (no emit)
+npm run check        # lint + format check + typecheck + test (what CI runs)
 ```
 
 ### Project structure

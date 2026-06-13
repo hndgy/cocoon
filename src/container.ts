@@ -16,14 +16,16 @@ function getHostClaudeConfigDir(): string {
   return process.env.CLAUDE_CONFIG_DIR ?? resolve(homedir(), ".claude");
 }
 
-export function buildMountBinds(projectDir: string, extraMounts: MountConfig[], shareTempDir = false): string[] {
+export function buildMountBinds(
+  projectDir: string,
+  extraMounts: MountConfig[],
+  shareTempDir = false,
+): string[] {
   // Defense-in-depth: validate even if callers already checked
   validateProjectDir(projectDir);
   validateMounts(extraMounts, "mount");
 
-  const binds = [
-    `${projectDir}:/workspace:rw`,
-  ];
+  const binds = [`${projectDir}:/workspace:rw`];
 
   // Opt-in: mount macOS temp dir so drag-and-drop file paths (e.g. screenshots)
   // resolve inside the container. Read-only to limit exposure.
@@ -105,11 +107,13 @@ export async function ensureContainer(
       WorkingDir: "/workspace",
       HostConfig: {
         Binds: binds,
-        Mounts: [{
-          Target: "/home/claude/.claude-config",
-          Source: `${name}-config`,
-          Type: "volume" as const,
-        }],
+        Mounts: [
+          {
+            Target: "/home/claude/.claude-config",
+            Source: `${name}-config`,
+            Type: "volume" as const,
+          },
+        ],
       },
       Tty: true,
       OpenStdin: true,
@@ -137,7 +141,11 @@ export async function resetContainer(projectDir: string): Promise<void> {
   const name = containerName(projectDir);
   try {
     const container = docker.getContainer(name);
-    try { await container.stop(); } catch { /* already stopped */ }
+    try {
+      await container.stop();
+    } catch {
+      /* already stopped */
+    }
     await container.remove();
     log("Cocoon unwrapped.");
   } catch {

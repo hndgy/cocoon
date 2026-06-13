@@ -1,121 +1,142 @@
 import { describe, it, expect } from "vitest";
 import { homedir } from "os";
 import { resolve } from "path";
-import { getBlockedReason, validateMount, validateMounts, validateProjectDir } from "../src/pathSecurity.js";
+import {
+  getBlockedReason,
+  validateMount,
+  validateMounts,
+  validateProjectDir,
+} from "../src/pathSecurity.js";
+
+// Use a fixed, non-root home so these assertions are deterministic regardless of
+// which user runs the suite (e.g. root in CI, where the real HOME is /root).
+const HOME = "/home/testuser";
 
 describe("getBlockedReason", () => {
   it("blocks root path /", () => {
-    expect(getBlockedReason("/")).toBeDefined();
+    expect(getBlockedReason("/", HOME)).toBeDefined();
   });
 
   it("blocks /etc", () => {
-    expect(getBlockedReason("/etc")).toBeDefined();
+    expect(getBlockedReason("/etc", HOME)).toBeDefined();
   });
 
   it("blocks /etc/shadow", () => {
-    expect(getBlockedReason("/etc/shadow")).toBeDefined();
+    expect(getBlockedReason("/etc/shadow", HOME)).toBeDefined();
   });
 
   it("blocks /etc/passwd", () => {
-    expect(getBlockedReason("/etc/passwd")).toBeDefined();
+    expect(getBlockedReason("/etc/passwd", HOME)).toBeDefined();
   });
 
   it("blocks /var/run/docker.sock", () => {
-    expect(getBlockedReason("/var/run/docker.sock")).toBeDefined();
+    expect(getBlockedReason("/var/run/docker.sock", HOME)).toBeDefined();
   });
 
   it("blocks /run/docker.sock", () => {
-    expect(getBlockedReason("/run/docker.sock")).toBeDefined();
+    expect(getBlockedReason("/run/docker.sock", HOME)).toBeDefined();
   });
 
   it("blocks /proc and subpaths", () => {
-    expect(getBlockedReason("/proc")).toBeDefined();
-    expect(getBlockedReason("/proc/1/mem")).toBeDefined();
+    expect(getBlockedReason("/proc", HOME)).toBeDefined();
+    expect(getBlockedReason("/proc/1/mem", HOME)).toBeDefined();
   });
 
   it("blocks /sys and subpaths", () => {
-    expect(getBlockedReason("/sys")).toBeDefined();
-    expect(getBlockedReason("/sys/kernel")).toBeDefined();
+    expect(getBlockedReason("/sys", HOME)).toBeDefined();
+    expect(getBlockedReason("/sys/kernel", HOME)).toBeDefined();
   });
 
   it("blocks /dev and subpaths", () => {
-    expect(getBlockedReason("/dev")).toBeDefined();
-    expect(getBlockedReason("/dev/sda")).toBeDefined();
+    expect(getBlockedReason("/dev", HOME)).toBeDefined();
+    expect(getBlockedReason("/dev/sda", HOME)).toBeDefined();
   });
 
   it("blocks ~/.ssh", () => {
-    expect(getBlockedReason(resolve(homedir(), ".ssh"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".ssh"), HOME)).toBeDefined();
   });
 
   it("blocks ~/.ssh subpaths", () => {
-    expect(getBlockedReason(resolve(homedir(), ".ssh/id_rsa"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".ssh/id_rsa"), HOME)).toBeDefined();
   });
 
   it("blocks ~/.gnupg", () => {
-    expect(getBlockedReason(resolve(homedir(), ".gnupg"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".gnupg"), HOME)).toBeDefined();
   });
 
   it("blocks ~/.aws", () => {
-    expect(getBlockedReason(resolve(homedir(), ".aws"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".aws"), HOME)).toBeDefined();
   });
 
   it("blocks ~/.docker", () => {
-    expect(getBlockedReason(resolve(homedir(), ".docker"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".docker"), HOME)).toBeDefined();
   });
 
   it("blocks ~/.config", () => {
-    expect(getBlockedReason(resolve(homedir(), ".config"))).toBeDefined();
+    expect(getBlockedReason(resolve(HOME, ".config"), HOME)).toBeDefined();
   });
 
   it("allows normal project paths", () => {
-    expect(getBlockedReason("/home/user/projects/myapp")).toBeUndefined();
+    expect(getBlockedReason("/home/user/projects/myapp", HOME)).toBeUndefined();
   });
 
   it("allows /tmp", () => {
-    expect(getBlockedReason("/tmp")).toBeUndefined();
+    expect(getBlockedReason("/tmp", HOME)).toBeUndefined();
   });
 
   it("allows ~/.gitconfig (not in blocked list)", () => {
-    expect(getBlockedReason(resolve(homedir(), ".gitconfig"))).toBeUndefined();
+    expect(getBlockedReason(resolve(HOME, ".gitconfig"), HOME)).toBeUndefined();
+  });
+
+  it("allows a project inside the user's own home", () => {
+    expect(getBlockedReason(resolve(HOME, "projects/app"), HOME)).toBeUndefined();
+  });
+
+  it("allows a home subtree even when home is under a blocked prefix (running as root)", () => {
+    // Regression: with HOME=/root, /root/projects/app must stay usable...
+    expect(getBlockedReason("/root/projects/app", "/root")).toBeUndefined();
+    expect(getBlockedReason(resolve("/root", ".gitconfig"), "/root")).toBeUndefined();
+    // ...but sensitive subdirs are still blocked.
+    expect(getBlockedReason("/root/.ssh", "/root")).toBeDefined();
   });
 
   it("handles paths with trailing slashes", () => {
-    expect(getBlockedReason("/etc/")).toBeDefined();
+    expect(getBlockedReason("/etc/", HOME)).toBeDefined();
   });
 
   it("resolves .. segments", () => {
-    expect(getBlockedReason("/etc/../etc")).toBeDefined();
-    expect(getBlockedReason("/tmp/../etc")).toBeDefined();
+    expect(getBlockedReason("/etc/../etc", HOME)).toBeDefined();
+    expect(getBlockedReason("/tmp/../etc", HOME)).toBeDefined();
   });
 
   it("blocks tilde-prefixed sensitive paths", () => {
-    expect(getBlockedReason("~/.ssh")).toBeDefined();
-    expect(getBlockedReason("~/.aws")).toBeDefined();
+    expect(getBlockedReason("~/.ssh", HOME)).toBeDefined();
+    expect(getBlockedReason("~/.aws", HOME)).toBeDefined();
   });
 
   it("blocks /etc subpaths like /etc/sudoers", () => {
-    expect(getBlockedReason("/etc/sudoers")).toBeDefined();
-    expect(getBlockedReason("/etc/crontab")).toBeDefined();
+    expect(getBlockedReason("/etc/sudoers", HOME)).toBeDefined();
+    expect(getBlockedReason("/etc/crontab", HOME)).toBeDefined();
   });
 
-  it("blocks /root", () => {
-    expect(getBlockedReason("/root")).toBeDefined();
-    expect(getBlockedReason("/root/.bashrc")).toBeDefined();
+  it("blocks another user's /root", () => {
+    expect(getBlockedReason("/root", HOME)).toBeDefined();
+    expect(getBlockedReason("/root/.bashrc", HOME)).toBeDefined();
   });
 
   it("blocks /boot", () => {
-    expect(getBlockedReason("/boot")).toBeDefined();
+    expect(getBlockedReason("/boot", HOME)).toBeDefined();
   });
 
   it("does not false-positive on prefix-similar paths", () => {
-    expect(getBlockedReason("/processed")).toBeUndefined();
-    expect(getBlockedReason("/developer")).toBeUndefined();
-    expect(getBlockedReason("/systems")).toBeUndefined();
-    expect(getBlockedReason("/etcetera")).toBeUndefined();
+    expect(getBlockedReason("/processed", HOME)).toBeUndefined();
+    expect(getBlockedReason("/developer", HOME)).toBeUndefined();
+    expect(getBlockedReason("/systems", HOME)).toBeUndefined();
+    expect(getBlockedReason("/etcetera", HOME)).toBeUndefined();
   });
 
   it("rejects paths with null bytes", () => {
-    expect(() => getBlockedReason("/etc\0anything")).toThrow(/null bytes/i);
+    expect(() => getBlockedReason("/etc\0anything", HOME)).toThrow(/null bytes/i);
   });
 });
 
