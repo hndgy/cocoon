@@ -137,7 +137,8 @@ Cocoon is a sandbox, not a fortress. The design philosophy: give Claude maximum 
 **What cocoon does:**
 
 - Mounts your project directory read-write (it needs to edit your code)
-- Mounts host Claude credentials read-only (so you don't need to log in again)
+- Carries your host Claude login into the container so you don't log in again — from
+  `~/.claude/.credentials.json` or, on macOS, the login Keychain
 - Blocks mounting sensitive host paths (`/`, `/etc`, `~/.ssh`, `~/.aws`, `~/.gnupg`, etc.)
 - Prompts before honoring mounts from `.cocoon.json`
 

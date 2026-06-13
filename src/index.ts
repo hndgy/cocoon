@@ -16,7 +16,13 @@ import {
   getContainerStatus,
   listContainers,
 } from "./container.js";
-import { execInContainer, shellInContainer, loginInContainer } from "./exec.js";
+import {
+  execInContainer,
+  shellInContainer,
+  loginInContainer,
+  seedCredentialsInContainer,
+} from "./exec.js";
+import { resolveHostCredentials } from "./credentials.js";
 import Docker from "dockerode";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -178,6 +184,13 @@ async function main(): Promise<void> {
     config.shareTempDir,
   );
   cocoonSpinner.success("Cocoon ready. Claude is getting cozy.");
+
+  // Carry the host's login into the container if it isn't already authenticated.
+  // Resolves from ~/.claude/.credentials.json or, on macOS, the login Keychain.
+  const hostCredentials = resolveHostCredentials();
+  if (hostCredentials) {
+    await seedCredentialsInContainer(name, hostCredentials);
+  }
 
   if (opts.login) {
     log("Opening Claude login inside cocoon...");

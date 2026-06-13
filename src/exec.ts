@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { warn } from "./ui.js";
+import { debug, warn } from "./ui.js";
 
 export function shellInContainer(containerName: string): Promise<number> {
   return execCommand(containerName, ["bash"]);
@@ -7,6 +7,58 @@ export function shellInContainer(containerName: string): Promise<number> {
 
 export function loginInContainer(containerName: string): Promise<number> {
   return execCommand(containerName, ["claude", "login"]);
+}
+
+/**
+ * Writes host credentials into the container's config directory, but only if it
+ * isn't already authenticated — so a token refreshed or a `cocoon --login` done
+ * inside the container is never clobbered. The JSON is piped via stdin (not argv)
+ * to keep the secret out of the process list. Best-effort: failures are logged at
+ * debug level and don't abort the run (Claude will just prompt to log in).
+ */
+export function seedCredentialsInContainer(
+  containerName: string,
+  credentialsJson: string,
+): Promise<void> {
+  return new Promise((resolvePromise) => {
+    // Always consume stdin (avoids EPIPE), then install only if no creds exist.
+    const script = [
+      "set -e",
+      'CONFIG_DIR="${CLAUDE_CONFIG_DIR:-/home/claude/.claude-config}"',
+      "tmp=$(mktemp)",
+      'cat > "$tmp"',
+      'if [ ! -s "$CONFIG_DIR/.credentials.json" ]; then',
+      '  install -m 600 "$tmp" "$CONFIG_DIR/.credentials.json"',
+      "fi",
+      'rm -f "$tmp"',
+    ].join("\n");
+
+    const child = spawn("docker", ["exec", "-i", containerName, "sh", "-c", script], {
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.stdin?.on("error", () => {
+      /* ignore EPIPE if the container closed stdin early */
+    });
+
+    child.on("error", (err) => {
+      debug(`Could not seed credentials: ${err.message}`);
+      resolvePromise();
+    });
+    child.on("close", (code) => {
+      if (code !== 0) {
+        debug(`Credential seeding exited with code ${code}: ${stderr.trim()}`);
+      }
+      resolvePromise();
+    });
+
+    child.stdin?.write(credentialsJson);
+    child.stdin?.end();
+  });
 }
 
 export function execInContainer(containerName: string, args: string[]): Promise<number> {

@@ -28,16 +28,17 @@ Run `npm run check` before committing — it mirrors `.github/workflows/ci.yml`.
 The CLI entry point is `src/index.ts`; it parses flags with commander, resolves
 config, then delegates to focused modules:
 
-| Module                | Responsibility                                                      |
-| --------------------- | ------------------------------------------------------------------- |
-| `src/index.ts`        | CLI parsing, flag dispatch, arg forwarding to `claude`              |
-| `src/config.ts`       | `.cocoon.json` parsing/validation + merge with CLI flags            |
-| `src/image.ts`        | Build/rebuild the Docker image; cache by Dockerfile hash label      |
-| `src/container.ts`    | Container lifecycle (create/start/stop/reset), mount + env assembly |
-| `src/exec.ts`         | `docker exec` into the container (claude / shell / login)           |
-| `src/pathSecurity.ts` | Block mounting sensitive host paths                                 |
-| `src/ui.ts`           | Colors, spinner, banner, logging (all to **stderr**)                |
-| `src/utils.ts`        | Path/tilde/hash helpers, prompts                                    |
+| Module                | Responsibility                                                         |
+| --------------------- | ---------------------------------------------------------------------- |
+| `src/index.ts`        | CLI parsing, flag dispatch, arg forwarding to `claude`                 |
+| `src/config.ts`       | `.cocoon.json` parsing/validation + merge with CLI flags               |
+| `src/image.ts`        | Build/rebuild the Docker image; cache by Dockerfile hash label         |
+| `src/container.ts`    | Container lifecycle (create/start/stop/reset), mount + env assembly    |
+| `src/exec.ts`         | `docker exec` into the container (claude / shell / login / seed creds) |
+| `src/credentials.ts`  | Resolve host Claude login (creds file or macOS Keychain)               |
+| `src/pathSecurity.ts` | Block mounting sensitive host paths                                    |
+| `src/ui.ts`           | Colors, spinner, banner, logging (all to **stderr**)                   |
+| `src/utils.ts`        | Path/tilde/hash helpers, prompts                                       |
 
 `Dockerfile` + `entrypoint.sh` define the container; they're copied into the
 build context by `image.ts`.

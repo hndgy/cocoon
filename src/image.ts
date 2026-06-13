@@ -31,7 +31,20 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
       throw new Error(`Image '${imageName}' not found and no Dockerfile available to build it.`);
     }
   }
-  const currentHash = dockerfileHash(dockerfileContent);
+
+  const buildContext = dirname(dockerfilePath);
+
+  // Hash the Dockerfile *and* the other files baked into the image so that
+  // editing entrypoint.sh (or .dockerignore) invalidates the cache and rebuilds.
+  let hashSource = dockerfileContent;
+  for (const sibling of ["entrypoint.sh", ".dockerignore"]) {
+    try {
+      hashSource += "\0" + readFileSync(resolve(buildContext, sibling), "utf-8");
+    } catch {
+      /* optional file, ignore if absent */
+    }
+  }
+  const currentHash = dockerfileHash(hashSource);
 
   const needsBuild = await shouldBuild(imageName, currentHash);
   if (!needsBuild) {
@@ -43,7 +56,6 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
   const uid = process.getuid?.() ?? 1000;
   const gid = process.getgid?.() ?? 1000;
 
-  const buildContext = dirname(dockerfilePath);
   const dockerfileName = dockerfilePath.split("/").pop()!;
 
   const srcFiles = [dockerfileName];
