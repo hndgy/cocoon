@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { log, dim } from "./ui.js";
+import { log, debug } from "./ui.js";
 
 const docker = new Docker();
 
@@ -18,7 +18,14 @@ function bundledDockerfilePath(): string {
   return resolve(__dirname, "..", "Dockerfile");
 }
 
-export async function ensureImage(imageName: string, customDockerfile?: string): Promise<void> {
+export async function ensureImage(
+  imageName: string,
+  customDockerfile?: string,
+  onProgress?: (line: string) => void,
+): Promise<void> {
+  // Build chatter goes to the live spinner when one is driving us, otherwise
+  // it stays at debug level so a normal run isn't buried in Docker output.
+  const report = onProgress ?? ((line: string) => debug(line));
   const dockerfilePath = customDockerfile ?? bundledDockerfilePath();
   let dockerfileContent: string;
   try {
@@ -51,7 +58,7 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
     return;
   }
 
-  log("Weaving cocoon image (first run takes a moment)...");
+  report("Weaving cocoon image (first run takes a moment)...");
 
   const uid = process.getuid?.() ?? 1000;
   const gid = process.getgid?.() ?? 1000;
@@ -91,13 +98,13 @@ export async function ensureImage(imageName: string, customDockerfile?: string):
         }
         if (event.stream) {
           const line = event.stream.trim();
-          if (line) log(dim(line));
+          if (line) report(line);
         }
       },
     );
   });
 
-  log("Image woven successfully.");
+  report("Image woven successfully.");
 }
 
 export async function removeImage(imageName: string): Promise<void> {
@@ -118,7 +125,7 @@ async function shouldBuild(imageName: string, currentHash: string): Promise<bool
     if (storedHash === currentHash) {
       return false;
     }
-    log("Cocoon blueprint changed, reweaving...");
+    debug("Cocoon blueprint changed, reweaving...");
     return true;
   } catch {
     return true;

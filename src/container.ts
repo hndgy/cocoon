@@ -3,7 +3,18 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { homedir } from "os";
 import { expandTilde, containerName } from "./utils.js";
-import { log } from "./ui.js";
+import {
+  debug,
+  log,
+  bold,
+  dim,
+  gray,
+  statusDot,
+  formatDuration,
+  formatTable,
+  renderCocoonList,
+  type CocoonListItem,
+} from "./ui.js";
 import type { MountConfig } from "./config.js";
 import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 
@@ -11,6 +22,10 @@ const docker = new Docker();
 
 // Must match HOST_CONFIG in entrypoint.sh
 const HOST_CLAUDE_CONFIG_MOUNT = "/home/claude/.host-claude-config";
+
+// Stamped onto each container so `--list`/`--status` can show the real project
+// path instead of the opaque hashed container name.
+const PROJECT_DIR_LABEL = "cocoon.project-dir";
 
 function getHostClaudeConfigDir(): string {
   return process.env.CLAUDE_CONFIG_DIR ?? resolve(homedir(), ".claude");
@@ -86,16 +101,16 @@ export async function ensureContainer(
     const info = await container.inspect();
 
     if (!info.State.Running) {
-      log("Waking up cocoon...");
+      debug("Waking up cocoon...");
       await container.start();
-      log("Cocoon is awake.");
+      debug("Cocoon is awake.");
     } else {
-      log("Cocoon already running.");
+      debug("Cocoon already running.");
     }
 
     return name;
   } catch {
-    log("Spinning up a fresh cocoon...");
+    debug("Spinning up a fresh cocoon...");
 
     const binds = buildMountBinds(projectDir, mounts, shareTempDir);
     const envVars = buildEnvVars(env);
@@ -104,6 +119,7 @@ export async function ensureContainer(
       name,
       Image: imageName,
       Env: envVars,
+      Labels: { [PROJECT_DIR_LABEL]: projectDir },
       WorkingDir: "/workspace",
       HostConfig: {
         Binds: binds,
@@ -121,7 +137,7 @@ export async function ensureContainer(
 
     const container = docker.getContainer(name);
     await container.start();
-    log("Cocoon spun up and running.");
+    debug("Cocoon spun up and running.");
     return name;
   }
 }
@@ -158,25 +174,39 @@ export async function getContainerStatus(projectDir: string): Promise<string> {
   try {
     const container = docker.getContainer(name);
     const info = await container.inspect();
-    return `Container: ${name}\nStatus: ${info.State.Status}\nCreated: ${info.Created}`;
+    const state = info.State.Status;
+    const createdMs = Date.parse(info.Created);
+    const age = Number.isNaN(createdMs)
+      ? info.Created
+      : `${formatDuration(Date.now() - createdMs)} ago`;
+
+    const rows = [
+      ["state", `${statusDot(state)} ${state}`],
+      ["project", projectDir],
+      ["container", gray(name)],
+      ["created", age],
+    ];
+    return formatTable([], rows);
   } catch {
-    return `No container found for this project (would be named ${name})`;
+    return dim(
+      `No cocoon for this project yet (would be ${bold(name)}). Run \`cocoon\` to weave one.`,
+    );
   }
 }
 
-export async function listContainers(): Promise<string> {
+export async function getCocoonInstances(): Promise<CocoonListItem[]> {
   const containers = await docker.listContainers({ all: true });
-  const ours = containers.filter((c) =>
-    c.Names.some((n) => n.replace(/^\//, "").startsWith("cocoon-")),
-  );
+  return containers
+    .filter((c) => c.Names.some((n) => n.replace(/^\//, "").startsWith("cocoon-")))
+    .map((c) => ({
+      name: c.Names[0].replace(/^\//, ""),
+      projectDir: c.Labels?.[PROJECT_DIR_LABEL],
+      state: c.State,
+      status: c.Status,
+    }));
+}
 
-  if (ours.length === 0) {
-    return "No cocoon instances found.";
-  }
-
-  const lines = ours.map((c) => {
-    const name = c.Names[0].replace(/^\//, "");
-    return `  ${name}  ${c.State}  ${c.Status}`;
-  });
-  return `Cocoon instances:\n${lines.join("\n")}`;
+export async function listContainers(): Promise<string> {
+  const instances = await getCocoonInstances();
+  return renderCocoonList(instances);
 }
