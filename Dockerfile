@@ -15,10 +15,13 @@ RUN apt-get update && \
 RUN groupadd -g ${GID} claude || true && \
     useradd -m -u ${UID} -g ${GID} -s /bin/bash claude
 
-# Install Claude Code via native installer as claude user
+# Install Claude Code via native installer as claude user.
+# Pass `latest` so the image always bakes in the newest Claude Code release
+# rather than the default `stable` channel. The container also self-updates on
+# startup (see entrypoint.sh) so long-lived, cached images stay current.
 USER claude
 SHELL ["/bin/bash", "-c"]
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN curl -fsSL https://claude.ai/install.sh | bash -s latest
 ENV PATH="/home/claude/.local/bin:${PATH}"
 # CLAUDE_CONFIG_DIR: a persistent volume mounted here stores all config + credentials.
 # User logs in once inside the container, credentials persist across restarts.

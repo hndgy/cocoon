@@ -14,6 +14,11 @@ if [ ! -s "$CONFIG_DIR/.credentials.json" ] && [ -f "$HOST_CONFIG/.credentials.j
   chmod 600 "$CONFIG_DIR/.credentials.json"
 fi
 
+# Keep Claude Code on the latest version even for cached or long-lived
+# containers. Best-effort: skipped silently if offline or already current so a
+# missing network never blocks startup (note the surrounding `set -e`).
+claude update >/dev/null 2>&1 || true
+
 # Ensure bypassPermissionsModeAccepted and hasCompletedOnboarding are set
 # This prevents the login/onboarding screen when using --dangerously-skip-permissions
 if [ ! -f "$CLAUDE_JSON" ]; then
