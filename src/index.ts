@@ -5,7 +5,7 @@ import { readFileSync } from "fs";
 import { resolve, dirname, basename } from "path";
 import { fileURLToPath } from "url";
 import { resolveProjectDir, promptUser } from "./utils.js";
-import { log, warn, success, banner, createSpinner, yellow, setDebug } from "./ui.js";
+import { log, warn, success, banner, createSpinner, clampLine, yellow, setDebug } from "./ui.js";
 import { loadConfig, mergeConfig, type MountConfig } from "./config.js";
 import { validateProjectDir, validateMounts } from "./pathSecurity.js";
 import { ensureImage, removeImage } from "./image.js";
@@ -68,7 +68,20 @@ async function main(): Promise<void> {
     .option("-y, --yes", "Auto-accept config file mounts without prompting")
     .option("--debug", "Show verbose Docker and startup logs")
     .allowUnknownOption(true)
-    .allowExcessArguments(true);
+    .allowExcessArguments(true)
+    .addHelpText(
+      "after",
+      `
+Examples:
+  $ cocoon                              run Claude against the current directory
+  $ cocoon "refactor auth to use JWT"   run Claude with a prompt
+  $ cocoon --model sonnet --verbose     forward any flags through to Claude Code
+  $ cocoon --shell                      open a bash shell inside the cocoon
+  $ cocoon --list                       see every cocoon and its project
+  $ cocoon --reset                      throw away the cocoon and start fresh
+
+Unrecognized flags and positional args are forwarded to Claude Code.`,
+    );
 
   program.parse(process.argv);
   const opts = program.opts();
@@ -167,10 +180,14 @@ async function main(): Promise<void> {
     shareTempDir: opts.shareTmpdir,
   });
 
-  // Ensure image exists
+  // Ensure image exists. Build chatter is streamed onto the spinner line
+  // (clamped to the terminal width) so the user sees live progress.
   const spinner = createSpinner("Preparing isolated environment...");
   spinner.start();
-  await ensureImage(config.image, config.dockerfile);
+  const termWidth = (process.stderr.columns ?? 80) - 4;
+  await ensureImage(config.image, config.dockerfile, (line) =>
+    spinner.update(clampLine(line, termWidth)),
+  );
   spinner.success("Environment image ready.");
 
   // Ensure container is running

@@ -120,6 +120,22 @@ All fields are optional. CLI flags override config file values.
 
 When a config file includes mounts, cocoon will prompt for confirmation before proceeding (bypass with `--yes`).
 
+## Managing your cocoons
+
+`cocoon --list` shows every cocoon at a glance — by project path, not the opaque
+hashed container name — with a live status dot and uptime:
+
+```
+            project                     status
+● running   /home/user/cocoon           Up 12 minutes
+● exited    /home/user/work/api-server   Exited (0) 3 hours ago
+```
+
+`cocoon --status` prints a quick panel for the current project (state, project
+path, container name, and age). During the first run, image-build progress
+streams live on a single spinner line instead of scrolling Docker output — pass
+`--debug` if you want the full build log.
+
 ## Container lifecycle
 
 Cocoon manages one container per project directory (named by hashing the path):

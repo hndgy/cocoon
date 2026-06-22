@@ -37,7 +37,7 @@ config, then delegates to focused modules:
 | `src/exec.ts`         | `docker exec` into the container (claude / shell / login / seed creds) |
 | `src/credentials.ts`  | Resolve host Claude login (creds file or macOS Keychain)               |
 | `src/pathSecurity.ts` | Block mounting sensitive host paths                                    |
-| `src/ui.ts`           | Colors, spinner, banner, logging (all to **stderr**)                   |
+| `src/ui.ts`           | Colors, spinner, banner, tables/status dashboard, logging (**stderr**) |
 | `src/utils.ts`        | Path/tilde/hash helpers, prompts                                       |
 
 `Dockerfile` + `entrypoint.sh` define the container; they're copied into the
